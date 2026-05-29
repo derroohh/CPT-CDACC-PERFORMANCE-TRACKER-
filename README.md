@@ -1,20 +1,61 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
-</div>
+# CDACC CPT - Performance Tracker
 
-# Run and deploy your AI Studio app
+A repository for CDACC students exam performance tracker built with React, TypeScript, and Firebase.
 
-This contains everything you need to run your app locally.
+## Installation
 
-View your app in AI Studio: https://ai.studio/apps/2cf0edae-0bee-491f-aa58-6545d5cee7e4
+To install this package from GitHub Packages:
 
-## Run Locally
+```bash
+npm install @derroohh/cdacc-cpt
+```
 
-**Prerequisites:**  Node.js
+Make sure you have a `.npmrc` file in your project root with:
 
+```
+@derroohh:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=YOUR_GITHUB_TOKEN
+```
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+Or set the GitHub token in your environment:
+
+```bash
+npm config set //npm.pkg.github.com/:_authToken YOUR_GITHUB_TOKEN
+```
+
+## Development
+
+```bash
+npm install
+npm run dev
+```
+
+## Build
+
+```bash
+npm run build
+```
+
+## Publishing
+
+Releases are automatically published to GitHub Packages when you create a new release on GitHub.
+
+To manually publish:
+
+1. Update the version in `package.json`
+2. Build the project: `npm run build`
+3. Publish: `npm publish`
+
+## Technologies
+
+- React 19
+- TypeScript
+- Vite
+- Express
+- Firebase
+- Tailwind CSS
+- Google Gemini AI
+
+## License
+
+MIT
