@@ -40,16 +40,6 @@ npm run dev
 npm run build
 ```
 
-## Publishing
-
-Releases are automatically published to GitHub Packages when you create a new release on GitHub.
-
-To manually publish:
-
-1. Update the version in `package.json`
-2. Build the project: `npm run build`
-3. Publish: `npm publish`
-
 ## Technologies
 
 - React 19
