@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from "react";
 import { initialCDACCData } from "./initialData.ts";
-import { CDACCDashboardData, PoEStatus, CompetenceStatus, AssessmentRecord, Deadline, StudentProfile, AttendanceSession } from "./types.ts";
+import { CDACCDashboardData, PoEStatus, CompetenceStatus, AssessmentRecord, Deadline, StudentProfile, AttendanceSession, UnitOfLearning } from "./types.ts";
 
 import Header from "./components/Header.tsx";
 import CDACCSummaryCards from "./components/CDACCSummaryCards.tsx";
@@ -15,6 +15,30 @@ import AICoachAdvisor from "./components/AICoachAdvisor.tsx";
 import ScheduleReminders from "./components/ScheduleReminders.tsx";
 import PerformanceGraphs from "./components/PerformanceGraphs.tsx";
 import AttendanceTracker from "./components/AttendanceTracker.tsx";
+import Sidebar from "./components/Sidebar.tsx";
+
+import { 
+  auth, 
+  db, 
+  isFirebaseConfigured, 
+  handleFirestoreError, 
+  OperationType 
+} from "./firebase.ts";
+import { 
+  onAuthStateChanged, 
+  signInWithPopup, 
+  GoogleAuthProvider, 
+  signOut, 
+  User 
+} from "firebase/auth";
+import { 
+  doc, 
+  getDoc, 
+  setDoc, 
+  onSnapshot, 
+  collection, 
+  deleteDoc 
+} from "firebase/firestore";
 
 import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck } from "lucide-react";
 
@@ -52,10 +76,135 @@ export default function App() {
   // State: Custom Toast Overlay Reminders queue
   const [activeToasts, setActiveToasts] = useState<{ id: string; title: string; body: string }[]>([]);
 
+  // State: Collapsible and responsive Sidebar navigation panels
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isSidebarOpenMobile, setIsSidebarOpenMobile] = useState<boolean>(false);
+
+  // State: Connected Firebase context authenticated user
+  const [user, setUser] = useState<User | null>(null);
+
+  // Auth Hook: Setup connection listeners
+  useEffect(() => {
+    if (!isFirebaseConfigured || !auth) return;
+
+    const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
+      setUser(currentUser);
+      if (currentUser) {
+        checkAndMigrate(currentUser);
+      } else {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          try {
+            setData(JSON.parse(raw));
+          } catch (e) {
+            setData(initialCDACCData);
+          }
+        } else {
+          setData(initialCDACCData);
+        }
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Sync Hook: Synchronize dynamic Cloud collections into React state in real-time
+  useEffect(() => {
+    if (!db || !user) return;
+
+    // 1. Listen to Student Profile document
+    const unsubProfile = onSnapshot(doc(db, 'students', user.uid), (docSn) => {
+      if (docSn.exists()) {
+        const studentProfile = docSn.data() as StudentProfile;
+        setData(prev => ({ ...prev, student: studentProfile }));
+      }
+    }, (err) => handleFirestoreError(err, OperationType.GET, `students/${user.uid}`));
+
+    // 2. Listen to Learning Units Collection
+    const unsubUnits = onSnapshot(collection(db, 'students', user.uid, 'units'), (snap) => {
+      if (!snap.empty) {
+        const list: UnitOfLearning[] = [];
+        snap.forEach((docSnap) => {
+          list.push(docSnap.data() as UnitOfLearning);
+        });
+        list.sort((a, b) => a.code.localeCompare(b.code));
+        setData(prev => ({ ...prev, units: list }));
+      }
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `students/${user.uid}/units`));
+
+    // 3. Listen to Deadlines milestones
+    const unsubDeadlines = onSnapshot(collection(db, 'students', user.uid, 'deadlines'), (snap) => {
+      const list: Deadline[] = [];
+      snap.forEach((docSnap) => {
+        list.push(docSnap.data() as Deadline);
+      });
+      setData(prev => ({ ...prev, deadlines: list }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `students/${user.uid}/deadlines`));
+
+    // 4. Listen to Class Attendance Ledger
+    const unsubAttendance = onSnapshot(collection(db, 'students', user.uid, 'attendanceLogs'), (snap) => {
+      const list: AttendanceSession[] = [];
+      snap.forEach((docSnap) => {
+        list.push(docSnap.data() as AttendanceSession);
+      });
+      setData(prev => ({ ...prev, attendanceLogs: list }));
+    }, (err) => handleFirestoreError(err, OperationType.LIST, `students/${user.uid}/attendanceLogs`));
+
+    return () => {
+      unsubProfile();
+      unsubUnits();
+      unsubDeadlines();
+      unsubAttendance();
+    };
+  }, [user]);
+
+  // Sync and Migration task
+  const checkAndMigrate = async (currentUser: User) => {
+    if (!db) return;
+    const studentRef = doc(db, 'students', currentUser.uid);
+    try {
+      const snap = await getDoc(studentRef);
+      if (!snap.exists()) {
+        triggerPushAlert(
+          "🚀 Syncing Cloud Database", 
+          "Setting up your live CDACC database and moving local logs to Firestore."
+        );
+        
+        // Save profile
+        await setDoc(studentRef, data.student);
+
+        // Batch upload learning units
+        for (const unit of data.units) {
+          await setDoc(doc(db, 'students', currentUser.uid, 'units', unit.id), unit);
+        }
+
+        // Batch upload deadlines
+        for (const deadline of data.deadlines) {
+          await setDoc(doc(db, 'students', currentUser.uid, 'deadlines', deadline.id), deadline);
+        }
+
+        // Batch upload attendance logs
+        if (data.attendanceLogs) {
+          for (const log of data.attendanceLogs) {
+            await setDoc(doc(db, 'students', currentUser.uid, 'attendanceLogs', log.id), log);
+          }
+        }
+
+        triggerPushAlert("✓ Database Configured", "Trainee progress synced. Online cloud mode active!");
+      } else {
+        triggerPushAlert("✓ Welcome Back", "Loaded encrypted student registry records from Firestore database.");
+      }
+    } catch (error) {
+      handleFirestoreError(error, OperationType.WRITE, `students/${currentUser.uid}`);
+    }
+  };
+
   // Safe effect: Persist statistical state changes to localStorage
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-  }, [data]);
+    if (!user) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    }
+  }, [data, user]);
 
   // Audio synthesize chime: oscillator-driven audio cue sweep
   const playToastAcousticSweep = () => {
@@ -147,9 +296,11 @@ export default function App() {
   };
 
   // Action: Add continuous assessment grade record
-  const handleAddAssessment = (unitId: string, assessment: AssessmentRecord) => {
+  // Action: Add continuous assessment grade record
+  const handleAddAssessment = async (unitId: string, assessment: AssessmentRecord) => {
+    let nextUnits: UnitOfLearning[] = [];
     setData((prev) => {
-      const nextUnits = prev.units.map((unit) => {
+      nextUnits = prev.units.map((unit) => {
         if (unit.id !== unitId) return unit;
 
         const updatedAssessments = [...unit.assessments, assessment];
@@ -181,12 +332,24 @@ export default function App() {
       "📝 Grade Registered!",
       `Assessment "${assessment.title}" successfully saved under target course metrics.`
     );
+
+    if (user && db) {
+      const targetUnit = nextUnits.find(u => u.id === unitId);
+      if (targetUnit) {
+        try {
+          await setDoc(doc(db, 'students', user.uid, 'units', unitId), targetUnit);
+        } catch (e) {
+          handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/units/${unitId}`);
+        }
+      }
+    }
   };
 
   // Action: Delete continuous assessment record
-  const handleDeleteAssessment = (unitId: string, assessmentId: string) => {
+  const handleDeleteAssessment = async (unitId: string, assessmentId: string) => {
+    let nextUnits: UnitOfLearning[] = [];
     setData((prev) => {
-      const nextUnits = prev.units.map((unit) => {
+      nextUnits = prev.units.map((unit) => {
         if (unit.id !== unitId) return unit;
 
         const updatedAssessments = unit.assessments.filter((a) => a.id !== assessmentId);
@@ -214,12 +377,24 @@ export default function App() {
         units: nextUnits,
       };
     });
+
+    if (user && db) {
+      const targetUnit = nextUnits.find(u => u.id === unitId);
+      if (targetUnit) {
+        try {
+          await setDoc(doc(db, 'students', user.uid, 'units', unitId), targetUnit);
+        } catch (e) {
+          handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/units/${unitId}`);
+        }
+      }
+    }
   };
 
   // Action: Update unit PoE status when checklists are completed
-  const handleUpdatePoEStatus = (unitId: string, status: PoEStatus) => {
+  const handleUpdatePoEStatus = async (unitId: string, status: PoEStatus) => {
+    let nextUnits: UnitOfLearning[] = [];
     setData((prev) => {
-      const nextUnits = prev.units.map((unit) => {
+      nextUnits = prev.units.map((unit) => {
         if (unit.id !== unitId) return unit;
         return {
           ...unit,
@@ -244,32 +419,51 @@ export default function App() {
         "Your unit portfolio is now configured as ready for External CDACC examination boards."
       );
     }
+
+    if (user && db) {
+      const targetUnit = nextUnits.find(u => u.id === unitId);
+      if (targetUnit) {
+        try {
+          await setDoc(doc(db, 'students', user.uid, 'units', unitId), targetUnit);
+        } catch (e) {
+          handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/units/${unitId}`);
+        }
+      }
+    }
   };
 
   // Action: Add new CDACC deadline
-  const handleAddDeadline = (deadline: Deadline) => {
+  const handleAddDeadline = async (deadline: Deadline) => {
     setData((prev) => ({
       ...prev,
       deadlines: [...prev.deadlines, deadline],
     }));
+
+    if (user && db) {
+      try {
+        await setDoc(doc(db, 'students', user.uid, 'deadlines', deadline.id), deadline);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.CREATE, `students/${user.uid}/deadlines/${deadline.id}`);
+      }
+    }
   };
 
   // Action: Toggle completion check of a timeline milestone
-  const handleToggleCompleteDeadline = (deadlineId: string) => {
+  const handleToggleCompleteDeadline = async (deadlineId: string) => {
+    let targetDl: Deadline | undefined;
     setData((prev) => {
       const updatedDeadlines = prev.deadlines.map((dl) => {
         if (dl.id !== deadlineId) return dl;
         const nextState = !dl.completed;
         
         if (nextState) {
-          // Play micro sound when student ticks off academic task successfully!
           triggerPushAlert(
             "✓ Milestone Cleared",
             `Great job clearing task: "${dl.title}". Stay persistent!`
           );
         }
-
-        return { ...dl, completed: nextState };
+        targetDl = { ...dl, completed: nextState };
+        return targetDl;
       });
 
       return {
@@ -277,14 +471,30 @@ export default function App() {
         deadlines: updatedDeadlines,
       };
     });
+
+    if (user && db && targetDl) {
+      try {
+        await setDoc(doc(db, 'students', user.uid, 'deadlines', deadlineId), targetDl);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/deadlines/${deadlineId}`);
+      }
+    }
   };
 
   // Action: Delete custom academic deadline
-  const handleDeleteDeadline = (deadlineId: string) => {
+  const handleDeleteDeadline = async (deadlineId: string) => {
     setData((prev) => ({
       ...prev,
       deadlines: prev.deadlines.filter((d) => d.id !== deadlineId),
     }));
+
+    if (user && db) {
+      try {
+        await deleteDoc(doc(db, 'students', user.uid, 'deadlines', deadlineId));
+      } catch (e) {
+        handleFirestoreError(e, OperationType.DELETE, `students/${user.uid}/deadlines/${deadlineId}`);
+      }
+    }
   };
 
   // Communicates: Click from other subpanels triggers AI chatbot scope selection
@@ -294,221 +504,228 @@ export default function App() {
   };
 
   // Action: Edit user profile details
-  const handleUpdateProfile = (newProfile: StudentProfile) => {
+  const handleUpdateProfile = async (newProfile: StudentProfile) => {
     setData((prev) => ({
       ...prev,
       student: newProfile,
     }));
     triggerPushAlert("Profile Saved ✔", "Student personal information successfully modified details.");
+
+    if (user && db) {
+      try {
+        await setDoc(doc(db, 'students', user.uid), newProfile);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}`);
+      }
+    }
   };
 
   // Reset helper
-  const handleResetAppToDefault = () => {
+  const handleResetAppToDefault = async () => {
     if (confirm("Reset application? All your recorded test scores, attendance details and customized milestones will revert to defaults.")) {
       setData(initialCDACCData);
       localStorage.removeItem(STORAGE_KEY);
       triggerPushAlert("System Reverted", "Data restored successfully to baseline Level 6 tracker.");
+
+      if (user && db) {
+        try {
+          await setDoc(doc(db, 'students', user.uid), initialCDACCData.student);
+          for (const u of initialCDACCData.units) {
+            await setDoc(doc(db, 'students', user.uid, 'units', u.id), u);
+          }
+        } catch (e) {
+          console.error("Reseed failed:", e);
+        }
+      }
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    if (!isFirebaseConfigured || !auth) {
+      triggerPushAlert("Local Simulator", "Please run set_up_firebase to register database storage credentials.");
+      return;
+    }
+    const provider = new GoogleAuthProvider();
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (error) {
+      triggerPushAlert("Auth Locked", "Unable to complete Google Authentication.");
+      console.error(error);
+    }
+  };
+
+  const handleSignOut = async () => {
+    if (!auth) return;
+    try {
+      await signOut(auth);
+      setUser(null);
+      setData(initialCDACCData);
+      localStorage.removeItem(STORAGE_KEY);
+      triggerPushAlert("Session Ended", "Disconnected Cloud database. Local temporary sandbox is working.");
+    } catch (error) {
+      console.error("Auth sign out error:", error);
     }
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 pb-12 font-sans selection:bg-emerald-500 selection:text-white">
+    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col md:flex-row font-sans selection:bg-emerald-500 selection:text-white">
       
-      {/* GLOBAL TOP NAVIGATION RAIL / HEADER BAR */}
-      <nav className="sticky top-0 bg-white/95 backdrop-blur-md border-b border-slate-200 z-40 px-4 py-3 shadow-xs">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <span className="p-1.5 bg-emerald-600 rounded-lg text-white font-black text-xs font-mono tracking-widest block shadow-sm shadow-emerald-500/30">
-              CDACC
-            </span>
-            <div>
-              <span className="font-display font-bold text-slate-850 text-sm tracking-tight block">
-                Kenya Trainee Tracker
-              </span>
-              <span className="text-[9px] uppercase font-mono tracking-wider text-slate-400 font-bold block">
-                Continuous Competency Hub
-              </span>
-            </div>
-          </div>
+      {/* SIDEBAR NAVIGATION CONTROLLER */}
+      <Sidebar
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        student={data.student}
+        isFirebaseConfigured={isFirebaseConfigured}
+        user={user}
+        onLogin={handleGoogleSignIn}
+        onLogout={handleSignOut}
+        isCollapsed={isSidebarCollapsed}
+        onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+        isOpenMobile={isSidebarOpenMobile}
+        onToggleMobile={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
+      />
 
-          {/* DESKTOP NAV TABS */}
-          <div className="hidden md:flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-            <button
-              onClick={() => setActiveTab("dashboard")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${activeTab === "dashboard" ? "bg-white text-slate-850 shadow-xs" : "text-slate-500 hover:text-slate-850"}`}
-            >
-              <LayoutDashboard className="h-3.5 w-3.5 inline mr-1 text-slate-500" /> Metrics & Trends
-            </button>
-            <button
-              onClick={() => setActiveTab("attendance")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${activeTab === "attendance" ? "bg-white text-slate-850 shadow-xs" : "text-slate-500 hover:text-slate-850"}`}
-            >
-              <UserCheck className="h-3.5 w-3.5 inline mr-1 text-slate-500" /> Attendance Ledger
-            </button>
-            <button
-              onClick={() => setActiveTab("grades")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${activeTab === "grades" ? "bg-white text-slate-850 shadow-xs" : "text-slate-500 hover:text-slate-850"}`}
-            >
-              <ClipboardCheck className="h-3.5 w-3.5 inline mr-1 text-slate-500" /> Syllabus Grades
-            </button>
-            <button
-              onClick={() => setActiveTab("poe")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${activeTab === "poe" ? "bg-white text-slate-850 shadow-xs" : "text-slate-500 hover:text-slate-850"}`}
-            >
-              <BookOpen className="h-3.5 w-3.5 inline mr-1 text-slate-500" /> Portfolio Binder (PoE)
-            </button>
-            <button
-              onClick={() => setActiveTab("coach")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${activeTab === "coach" ? "bg-white text-slate-850 shadow-xs animate-pulse" : "text-slate-500 hover:text-slate-850"}`}
-            >
-              <Brain className="h-3.5 w-3.5 inline mr-1 text-emerald-600 fill-emerald-100" /> AI Coach Mentor
-            </button>
-            <button
-              onClick={() => setActiveTab("deadlines")}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold cursor-pointer transition ${activeTab === "deadlines" ? "bg-white text-slate-850 shadow-xs" : "text-slate-500 hover:text-slate-850"}`}
-            >
-              <Clock className="h-3.5 w-3.5 inline mr-1 text-slate-500" /> Deadline Alarms
-            </button>
-          </div>
-
+      {/* RIGHT SIDE MAIN SCROLLABLE CONTENT BLOCK */}
+      <div className="flex-1 flex flex-col min-w-0">
+        
+        {/* UPPER ACTION / TOGGLE HEADER PIECE */}
+        <header className="hidden md:flex items-center justify-between px-6 py-3.5 bg-white border-b border-slate-200 shadow-xs sticky top-0 z-30">
           <div className="flex items-center gap-2">
+            <Sparkles className="h-4 w-4 text-emerald-555 animate-pulse" />
+            <span className="text-[11px] font-mono tracking-wider text-slate-400 font-extrabold uppercase">
+              Kenya CDACC Tracker (CBET Framework Compliant)
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
             <button
               onClick={handleRequestPushAuthority}
               className={`p-2 rounded-xl transition cursor-pointer font-sans text-xs ${isNotificationsEnabled ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}
               title={isNotificationsEnabled ? "OS Push Notifications Configured" : "Manage background alerts Settings"}
             >
-              <Bell className={`h-4.5 w-4.5 ${isNotificationsEnabled ? "animate-pulse" : ""}`} />
+              <Bell className={`h-4 w-4 ${isNotificationsEnabled ? "animate-pulse" : ""}`} />
             </button>
             
             <button
               onClick={handleResetAppToDefault}
-              className="p-2 bg-slate-105 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition cursor-pointer"
+              className="p-2 bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
               title="Reset configuration defaults"
             >
-              <Settings className="h-4.5 w-4.5" />
+              <Settings className="h-4 w-4" />
             </button>
           </div>
-        </div>
-      </nav>
+        </header>
 
-      {/* MOBILE SCROLL TABS BAR (Visible only on mobile) */}
-      <div className="sticky top-[53px] bg-slate-900 text-white z-35 flex md:hidden items-center gap-1 overflow-x-auto p-2 border-b border-slate-800 scrollbar-none scrollable">
-        <button
-          onClick={() => setActiveTab("dashboard")}
-          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${activeTab === "dashboard" ? "bg-emerald-600 text-white" : "text-slate-400"}`}
-        >
-          Dashboard
-        </button>
-        <button
-          onClick={() => setActiveTab("attendance")}
-          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${activeTab === "attendance" ? "bg-emerald-600 text-white" : "text-slate-400"}`}
-        >
-          Attendance
-        </button>
-        <button
-          onClick={() => setActiveTab("grades")}
-          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${activeTab === "grades" ? "bg-emerald-600 text-white" : "text-slate-400"}`}
-        >
-          Syllabus & Grades
-        </button>
-        <button
-          onClick={() => setActiveTab("poe")}
-          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${activeTab === "poe" ? "bg-emerald-600 text-white" : "text-slate-400"}`}
-        >
-          Portfolio (PoE)
-        </button>
-        <button
-          onClick={() => setActiveTab("coach")}
-          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${activeTab === "coach" ? "bg-emerald-600 text-white" : "text-slate-400"}`}
-        >
-          AI Coach Advisor
-        </button>
-        <button
-          onClick={() => setActiveTab("deadlines")}
-          className={`shrink-0 px-3.5 py-1.5 rounded-lg text-[11px] font-bold transition whitespace-nowrap cursor-pointer ${activeTab === "deadlines" ? "bg-emerald-600 text-white" : "text-slate-400"}`}
-        >
-          Timeline Deadlines
-        </button>
+        {/* CENTRAL CONTAINER */}
+        <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6">
+          
+          {/* STUDENT IDENTIFIER & CORE SYSTEM DATETIME */}
+          <Header student={data.student} onUpdateProfile={handleUpdateProfile} />
+
+          {/* CORE STATISTICAL ROW CARDS */}
+          <CDACCSummaryCards 
+            data={data} 
+            isNotificationsEnabled={isNotificationsEnabled} 
+            onRequestNotificationPermission={handleRequestPushAuthority}
+            onNavigateToTab={(tabId) => setActiveTab(tabId)}
+          />
+
+          {/* CONDITIONALLY RENDER NAVIGATION TABS */}
+          <div className="animate-fade-in">
+            {activeTab === "dashboard" && (
+              <PerformanceGraphs data={data} onNavigateToTab={(id) => setActiveTab(id)} />
+            )}
+
+            {activeTab === "attendance" && (
+              <AttendanceTracker
+                data={data}
+                onUpdateUnits={async (updatedUnits) => {
+                  setData(prev => ({ ...prev, units: updatedUnits }));
+                  if (user && db) {
+                    for (const unit of updatedUnits) {
+                      try {
+                        await setDoc(doc(db, 'students', user.uid, 'units', unit.id), unit);
+                      } catch (e) {
+                        handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/units/${unit.id}`);
+                      }
+                    }
+                  }
+                }}
+                onUpdateAttendanceLogs={async (updatedLogs) => {
+                  setData(prev => ({ ...prev, attendanceLogs: updatedLogs }));
+                  if (user && db) {
+                    const existingLogs = data.attendanceLogs || [];
+                    if (updatedLogs.length > existingLogs.length) {
+                      const added = updatedLogs.find(l => !existingLogs.some(el => el.id === l.id));
+                      if (added) {
+                        try {
+                          await setDoc(doc(db, 'students', user.uid, 'attendanceLogs', added.id), added);
+                        } catch (e) {
+                          handleFirestoreError(e, OperationType.CREATE, `students/${user.uid}/attendanceLogs/${added.id}`);
+                        }
+                      }
+                    } else if (updatedLogs.length < existingLogs.length) {
+                      const deleted = existingLogs.find(el => !updatedLogs.some(l => l.id === el.id));
+                      if (deleted) {
+                        try {
+                          await deleteDoc(doc(db, 'students', user.uid, 'attendanceLogs', deleted.id));
+                        } catch (e) {
+                          handleFirestoreError(e, OperationType.DELETE, `students/${user.uid}/attendanceLogs/${deleted.id}`);
+                        }
+                      }
+                    }
+                  }
+                }}
+                onTriggerInstantPush={triggerPushAlert}
+              />
+            )}
+
+            {activeTab === "grades" && (
+              <GradesManager 
+                data={data} 
+                onAddAssessment={handleAddAssessment} 
+                onDeleteAssessment={handleDeleteAssessment}
+                onSelectUnitForAI={handleSelectUnitForAI}
+              />
+            )}
+
+            {activeTab === "poe" && (
+              <PoETrackView 
+                data={data} 
+                onUpdatePoEStatus={handleUpdatePoEStatus} 
+                onSelectUnitForAI={handleSelectUnitForAI}
+              />
+            )}
+
+            {activeTab === "coach" && (
+              <AICoachAdvisor 
+                data={data} 
+                preSelectedUnitCode={preSelectedUnitCode} 
+                onClearPreSelectedUnitCode={() => setPreSelectedUnitCode("")}
+              />
+            )}
+
+            {activeTab === "deadlines" && (
+              <ScheduleReminders 
+                data={data}
+                isNotificationsEnabled={isNotificationsEnabled}
+                onRequestNotificationPermission={handleRequestPushAuthority}
+                onAddDeadline={handleAddDeadline}
+                onToggleCompleteDeadline={handleToggleCompleteDeadline}
+                onDeleteDeadline={handleDeleteDeadline}
+                onTriggerInstantPush={triggerPushAlert}
+              />
+            )}
+          </div>
+
+          {/* FOOTER METRICS STYLING */}
+          <footer className="mt-12 pt-6 border-t border-slate-200 text-center text-slate-400 text-[10.5px] font-mono uppercase tracking-widest">
+            <span>Kabete Polytechnic Registry Center © 2026</span>
+            <span className="mx-2">•</span>
+            <span>Kenyan TVET CDACC Competency Framework v2.1</span>
+          </footer>
+        </main>
       </div>
-
-      {/* CENTRAL COMPONENT BODY */}
-      <main className="max-w-7xl mx-auto px-4 mt-6">
-        
-        {/* STUDENT IDENTIFIER & CORE SYSTEM DATETIME */}
-        <Header student={data.student} onUpdateProfile={handleUpdateProfile} />
-
-        {/* CORE STATISTICAL ROW CARDS */}
-        <CDACCSummaryCards 
-          data={data} 
-          isNotificationsEnabled={isNotificationsEnabled} 
-          onRequestNotificationPermission={handleRequestPushAuthority}
-          onNavigateToTab={(tabId) => setActiveTab(tabId)}
-        />
-
-        {/* CONDITIONALLY RENDER NAVIGATION TABS */}
-        <div className="animate-fade-in">
-          {activeTab === "dashboard" && (
-            <PerformanceGraphs data={data} onNavigateToTab={(id) => setActiveTab(id)} />
-          )}
-
-          {activeTab === "attendance" && (
-            <AttendanceTracker
-              data={data}
-              onUpdateUnits={(updatedUnits) => {
-                setData(prev => ({ ...prev, units: updatedUnits }));
-              }}
-              onUpdateAttendanceLogs={(updatedLogs) => {
-                setData(prev => ({ ...prev, attendanceLogs: updatedLogs }));
-              }}
-              onTriggerInstantPush={triggerPushAlert}
-            />
-          )}
-
-          {activeTab === "grades" && (
-            <GradesManager 
-              data={data} 
-              onAddAssessment={handleAddAssessment} 
-              onDeleteAssessment={handleDeleteAssessment}
-              onSelectUnitForAI={handleSelectUnitForAI}
-            />
-          )}
-
-          {activeTab === "poe" && (
-            <PoETrackView 
-              data={data} 
-              onUpdatePoEStatus={handleUpdatePoEStatus} 
-              onSelectUnitForAI={handleSelectUnitForAI}
-            />
-          )}
-
-          {activeTab === "coach" && (
-            <AICoachAdvisor 
-              data={data} 
-              preSelectedUnitCode={preSelectedUnitCode} 
-              onClearPreSelectedUnitCode={() => setPreSelectedUnitCode("")}
-            />
-          )}
-
-          {activeTab === "deadlines" && (
-            <ScheduleReminders 
-              data={data}
-              isNotificationsEnabled={isNotificationsEnabled}
-              onRequestNotificationPermission={handleRequestPushAuthority}
-              onAddDeadline={handleAddDeadline}
-              onToggleCompleteDeadline={handleToggleCompleteDeadline}
-              onDeleteDeadline={handleDeleteDeadline}
-              onTriggerInstantPush={triggerPushAlert}
-            />
-          )}
-        </div>
-
-        {/* FOOTER METRICS STYLING */}
-        <footer className="mt-12 pt-6 border-t border-slate-200 text-center text-slate-400 text-[10.5px] font-mono uppercase tracking-widest">
-          <span>Kabete Polytechnic Registry Center © 2026</span>
-          <span className="mx-2">•</span>
-          <span>Kenyan TVET CDACC Competency Framework v2.1</span>
-        </footer>
-      </main>
 
       {/* FLOATING PUSH TOASTS OVERLAY */}
       <div className="fixed bottom-5 right-5 space-y-3 z-50 w-full max-w-sm px-4">

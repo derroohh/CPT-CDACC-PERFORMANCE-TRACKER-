@@ -1,0 +1,120 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 1. Global Safety Net Case
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // 3. Hardened Primitive Definition
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Helper: Valid characters and length limits
+    function isValidString(val, maxLen) {
+      return val is string && val.size() <= maxLen;
+    }
+
+    // Input Validations per Entities
+    function isValidStudentProfile(data) {
+      return data.keys().hasAll(['name', 'admissionNo', 'courseName', 'institution', 'cohort'])
+        && data.keys().size() <= 6
+        && isValidString(data.name, 100)
+        && isValidString(data.admissionNo, 50)
+        && isValidString(data.courseName, 150)
+        && isValidString(data.institution, 150)
+        && isValidString(data.cohort, 50)
+        && (!data.keys().contains('photoUrl') || isValidString(data.photoUrl, 400));
+    }
+
+    function isValidUnitOfLearning(data) {
+      return data.keys().hasAll(['id', 'code', 'name', 'level', 'creditHours', 'hoursRequired', 'hoursAttended', 'poeStatus', 'assessments', 'competenceStatus'])
+        && data.keys().size() == 10
+        && isValidId(data.id)
+        && isValidString(data.code, 30)
+        && isValidString(data.name, 150)
+        && data.level is int && data.level >= 4 && data.level <= 6
+        && data.creditHours is number && data.creditHours >= 0
+        && data.hoursRequired is number && data.hoursRequired >= 0
+        && data.hoursAttended is number && data.hoursAttended >= 0
+        && data.poeStatus in ['Not Started', 'In Progress', 'Ready for Assessment', 'Certified']
+        && data.competenceStatus in ['Competent', 'Not Yet Competent', 'Ongoing']
+        && data.assessments is list
+        && data.assessments.size() <= 100;
+    }
+
+    function isValidDeadline(data) {
+      return data.keys().hasAll(['id', 'unitId', 'unitName', 'title', 'dueDate', 'type', 'description', 'completed'])
+        && (data.keys().size() == 8 || (data.keys().size() == 9 && data.keys().contains('reminded')))
+        && isValidId(data.id)
+        && isValidId(data.unitId)
+        && isValidString(data.unitName, 150)
+        && isValidString(data.title, 150)
+        && isValidString(data.dueDate, 30)
+        && data.type in ['PoE Submission', 'Practical Prep', 'Internal CAT', 'Institutional Exam', 'CDACC National Exam']
+        && isValidString(data.description, 500)
+        && data.completed is bool
+        && (!data.keys().contains('reminded') || data.reminded is bool);
+    }
+
+    function isValidAttendanceSession(data) {
+      return data.keys().hasAll(['id', 'unitId', 'unitName', 'unitCode', 'date', 'duration', 'status', 'remarks'])
+        && data.keys().size() == 8
+        && isValidId(data.id)
+        && isValidId(data.unitId)
+        && isValidString(data.unitName, 150)
+        && isValidString(data.unitCode, 50)
+        && isValidString(data.date, 30)
+        && data.duration is number && data.duration >= 0
+        && data.status in ['Present', 'Absent (Excused)', 'Absent (Unexcused)']
+        && isValidString(data.remarks, 250);
+    }
+
+    // Collections matches
+    match /students/{userId} {
+      allow get: if isOwner(userId);
+      allow create: if isOwner(userId) && isValidStudentProfile(incoming());
+      allow update: if isOwner(userId) && isValidStudentProfile(incoming()) && incoming().admissionNo == existing().admissionNo;
+      allow delete: if isOwner(userId);
+
+      match /units/{unitId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(unitId) && isValidUnitOfLearning(incoming());
+        allow update: if isOwner(userId) && isValidId(unitId) && isValidUnitOfLearning(incoming());
+        allow delete: if isOwner(userId) && isValidId(unitId);
+      }
+
+      match /deadlines/{deadlineId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(deadlineId) && isValidDeadline(incoming());
+        allow update: if isOwner(userId) && isValidId(deadlineId) && isValidDeadline(incoming());
+        allow delete: if isOwner(userId) && isValidId(deadlineId);
+      }
+
+      match /attendanceLogs/{sessionId} {
+        allow get, list: if isOwner(userId);
+        allow create: if isOwner(userId) && isValidId(sessionId) && isValidAttendanceSession(incoming());
+        allow update: if isOwner(userId) && isValidId(sessionId) && isValidAttendanceSession(incoming());
+        allow delete: if isOwner(userId) && isValidId(sessionId);
+      }
+    }
+  }
+}

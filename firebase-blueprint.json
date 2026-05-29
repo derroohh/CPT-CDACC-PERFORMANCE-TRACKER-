@@ -1,0 +1,142 @@
+{
+  "entities": {
+    "studentProfile": {
+      "title": "StudentProfile",
+      "description": "Personal registration details for the Kenya TVET trainee.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Trainee full legal name"
+        },
+        "admissionNo": {
+          "type": "string",
+          "description": "Uniquely registered institution registration/enrollment code"
+        },
+        "courseName": {
+          "type": "string",
+          "description": "Title of structural CDACC qualifications syllabus study"
+        },
+        "institution": {
+          "type": "string",
+          "description": "Polytechnic center or vocational institute registry"
+        },
+        "cohort": {
+          "type": "string",
+          "description": "Academic cohort session tag"
+        },
+        "photoUrl": {
+          "type": "string",
+          "description": "Voluntary avatar image locator string"
+        }
+      },
+      "required": ["name", "admissionNo", "courseName", "institution", "cohort"]
+    },
+    "assessmentRecord": {
+      "title": "AssessmentRecord",
+      "description": "Individual continuous assessment marksheet entry.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "title": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["CAT", "Practical Project", "Continuous Assessment", "Internal Exam", "External Assessment"]
+        },
+        "obtainedScore": { "type": "number" },
+        "weight": { "type": "number" },
+        "date": { "type": "string" },
+        "feedback": { "type": "string" },
+        "status": {
+          "type": "string",
+          "enum": ["Competent", "Not Yet Competent", "Ongoing"]
+        }
+      },
+      "required": ["id", "title", "type", "obtainedScore", "weight", "date", "status"]
+    },
+    "unitOfLearning": {
+      "title": "UnitOfLearning",
+      "description": "A single specialized competency syllabus curriculum course.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "level": { "type": "number" },
+        "creditHours": { "type": "number" },
+        "hoursRequired": { "type": "number" },
+        "hoursAttended": { "type": "number" },
+        "poeStatus": {
+          "type": "string",
+          "enum": ["Not Started", "In Progress", "Ready for Assessment", "Certified"]
+        },
+        "assessments": {
+          "type": "array",
+          "description": "Active collection of continuous marks records"
+        },
+        "competenceStatus": {
+          "type": "string",
+          "enum": ["Competent", "Not Yet Competent", "Ongoing"]
+        }
+      },
+      "required": ["id", "code", "name", "level", "creditHours", "hoursRequired", "hoursAttended", "poeStatus", "assessments", "competenceStatus"]
+    },
+    "deadline": {
+      "title": "Deadline",
+      "description": "Academic calendar milestone or submission alarm marker.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "unitId": { "type": "string" },
+        "unitName": { "type": "string" },
+        "title": { "type": "string" },
+        "dueDate": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["PoE Submission", "Practical Prep", "Internal CAT", "Institutional Exam", "CDACC National Exam"]
+        },
+        "description": { "type": "string" },
+        "completed": { "type": "boolean" },
+        "reminded": { "type": "boolean" }
+      },
+      "required": ["id", "unitId", "unitName", "title", "dueDate", "type", "description", "completed"]
+    },
+    "attendanceSession": {
+      "title": "AttendanceSession",
+      "description": "Logged record of physical class attendance sessions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "unitId": { "type": "string" },
+        "unitName": { "type": "string" },
+        "unitCode": { "type": "string" },
+        "date": { "type": "string" },
+        "duration": { "type": "number" },
+        "status": {
+          "type": "string",
+          "enum": ["Present", "Absent (Excused)", "Absent (Unexcused)"]
+        },
+        "remarks": { "type": "string" }
+      },
+      "required": ["id", "unitId", "unitName", "unitCode", "date", "duration", "status", "remarks"]
+    }
+  },
+  "firestore": {
+    "/students/{userId}": {
+      "schema": "studentProfile",
+      "description": "Trainee registered profiles tracked by the system database"
+    },
+    "/students/{userId}/units/{unitId}": {
+      "schema": "unitOfLearning",
+      "description": "Course-wise grades and competence statuses metrics"
+    },
+    "/students/{userId}/deadlines/{deadlineId}": {
+      "schema": "deadline",
+      "description": "Scheduled dates and deadline alarms for tests and submissions"
+    },
+    "/students/{userId}/attendanceLogs/{sessionId}": {
+      "schema": "attendanceSession",
+      "description": "Trainee log logs for physical lectures checked"
+    }
+  }
+}
