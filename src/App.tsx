@@ -7,13 +7,11 @@ import React, { useState, useEffect } from "react";
 import { initialCDACCData } from "./initialData.ts";
 import { CDACCDashboardData, PoEStatus, CompetenceStatus, AssessmentRecord, Deadline, StudentProfile, AttendanceSession, UnitOfLearning } from "./types.ts";
 
-import Header from "./components/Header.tsx";
-import CDACCSummaryCards from "./components/CDACCSummaryCards.tsx";
+import DashboardOverview from "./components/DashboardOverview.tsx";
 import GradesManager from "./components/GradesManager.tsx";
 import PoETrackView from "./components/PoETrackView.tsx";
 import AICoachAdvisor from "./components/AICoachAdvisor.tsx";
 import ScheduleReminders from "./components/ScheduleReminders.tsx";
-import PerformanceGraphs from "./components/PerformanceGraphs.tsx";
 import AttendanceTracker from "./components/AttendanceTracker.tsx";
 import Sidebar from "./components/Sidebar.tsx";
 
@@ -619,21 +617,59 @@ export default function App() {
         {/* CENTRAL CONTAINER */}
         <main className="flex-1 max-w-7xl w-full mx-auto px-4 md:px-8 py-6">
           
-          {/* STUDENT IDENTIFIER & CORE SYSTEM DATETIME */}
-          <Header student={data.student} onUpdateProfile={handleUpdateProfile} />
+          {/* DYNAMIC BREADCRUMB PAGE TITLE HEADER - ONLY IF NOT ON DASHBOARD */}
+          {activeTab !== "dashboard" && (
+            <div className="bg-white border border-slate-200 rounded-2xl py-3.5 px-5 mb-6 shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4 font-sans animate-fade-in">
+              <div>
+                <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-mono font-bold tracking-wider uppercase mb-1">
+                  <span>Kenya TVET Hub</span>
+                  <span>/</span>
+                  <span className="text-emerald-600">{activeTab}</span>
+                </div>
+                <h2 className="text-lg font-bold font-display text-slate-800 tracking-tight capitalize leading-none">
+                  {activeTab === "attendance" && "Attendance Ledger Tracker"}
+                  {activeTab === "grades" && "Syllabus Contents & Course Grades"}
+                  {activeTab === "poe" && "Evidence Portfolio Binder (PoE)"}
+                  {activeTab === "coach" && "AI Study Coach & Advisory Board"}
+                  {activeTab === "deadlines" && "Assessments & Exam Deadlines"}
+                </h2>
+              </div>
 
-          {/* CORE STATISTICAL ROW CARDS */}
-          <CDACCSummaryCards 
-            data={data} 
-            isNotificationsEnabled={isNotificationsEnabled} 
-            onRequestNotificationPermission={handleRequestPushAuthority}
-            onNavigateToTab={(tabId) => setActiveTab(tabId)}
-          />
+              {/* Mini Interactive Profile Bubble to click back */}
+              <div 
+                onClick={() => setActiveTab("dashboard")}
+                className="flex items-center gap-2.5 bg-slate-50 hover:bg-slate-100 border border-slate-200/85 px-3 py-1.5 rounded-xl cursor-pointer transition-colors max-w-fit shrink-0 select-none group"
+                title="Click to return to main student dashboard overview"
+              >
+                <div className="h-7 w-7 rounded-lg bg-emerald-600 text-white flex items-center justify-center text-[11px] font-mono leading-none overflow-hidden shrink-0 group-hover:scale-102 transition-transform">
+                  {data.student.photoUrl ? (
+                    <img src={data.student.photoUrl} alt="" className="h-full w-full object-cover" />
+                  ) : (
+                    data.student.name.substring(0, 2)
+                  )}
+                </div>
+                <div>
+                  <span className="text-xs font-bold text-slate-805 block max-w-[120px] truncate leading-none">
+                    {data.student.name}
+                  </span>
+                  <span className="text-[9px] font-mono font-medium text-slate-400 block tracking-wider uppercase mt-1 leading-none">
+                    Adm: {data.student.admissionNo}
+                  </span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* CONDITIONALLY RENDER NAVIGATION TABS */}
           <div className="animate-fade-in">
             {activeTab === "dashboard" && (
-              <PerformanceGraphs data={data} onNavigateToTab={(id) => setActiveTab(id)} />
+              <DashboardOverview
+                data={data}
+                isNotificationsEnabled={isNotificationsEnabled}
+                onRequestNotificationPermission={handleRequestPushAuthority}
+                onNavigateToTab={setActiveTab}
+                onUpdateProfile={handleUpdateProfile}
+              />
             )}
 
             {activeTab === "attendance" && (
@@ -720,9 +756,7 @@ export default function App() {
 
           {/* FOOTER METRICS STYLING */}
           <footer className="mt-12 pt-6 border-t border-slate-200 text-center text-slate-400 text-[10.5px] font-mono uppercase tracking-widest">
-            <span>Kabete Polytechnic Registry Center © 2026</span>
-            <span className="mx-2">•</span>
-            <span>Kenyan TVET CDACC Competency Framework v2.1</span>
+            <span>Derrick Ngure | CPT(CDACC PEFORMANCE TRACKER)2026 ©</span>
           </footer>
         </main>
       </div>

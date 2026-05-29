@@ -1,18 +1,8 @@
 {
-  "name": "@derroohh/cdacc-cpt",
-  "private": false,
-  "version": "0.0.2",
+  "name": "react-example",
+  "private": true,
+  "version": "0.0.0",
   "type": "module",
-  "description": "CDACC students exam performance tracker",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts",
-  "publishConfig": {
-    "registry": "https://npm.pkg.github.com"
-  },
-  "repository": {
-    "type": "git",
-    "url": "https://github.com/derroohh/CPT-CDACC-PERFORMANCE-TRACKER-.git"
-  },
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",

@@ -75,22 +75,5 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path,
   };
-  console.error('Firestore Hardened Error Event: ', JSON.stringify(errInfo));
-  throw new Error(JSON.stringify(errInfo));
-}
-
-// Dry-run validate connection to active firestore
-export async function testConnection() {
-  if (!isFirebaseConfigured || !db) return;
-  try {
-    await getDocFromServer(doc(db, 'test', 'connection'));
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.warn("Firebase notice: Connection appears offline.");
-    }
-  }
-}
-
-if (isFirebaseConfigured) {
-  testConnection();
+  console.warn('Firestore Non-Fatal Event: ', JSON.stringify(errInfo));
 }
