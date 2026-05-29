@@ -2,6 +2,10 @@
 
 A repository for CDACC students exam performance tracker built with React, TypeScript, and Firebase.
 
+## 🚀 Live Demo
+
+Try the app online: [Google AI Studio - CDACC Performance Tracker](https://ai.studio/apps/2cf0edae-0bee-491f-aa58-6545d5cee7e4)
+
 ## Installation
 
 To install this package from GitHub Packages:
