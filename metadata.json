@@ -1,0 +1,8 @@
+{
+  "name": "Kenyan CDACC Student Tracker",
+  "description": "Student performance, exam results, attendance tracking, and Portfolio of Evidence (PoE) manager for Kenyan TVET CDACC courses with AI study mentoring.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
