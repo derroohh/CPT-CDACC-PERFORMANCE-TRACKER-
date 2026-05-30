@@ -235,6 +235,72 @@ export default function AttendanceTracker({
           </div>
 
         </div>
+
+        {/* SAFETY BUFFER & COMPLIANCE PREDICTOR MODULE */}
+        <div className="mt-5 p-4 bg-emerald-50/40 border border-emerald-100 rounded-2xl grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <h4 className="text-xs font-bold text-emerald-950 flex items-center gap-1.5 font-sans">
+              <TrendingUp className="h-4 w-4 text-emerald-600" /> CBET Attendance Prediction Engine
+            </h4>
+            <p className="text-[10.5px] leading-relaxed text-emerald-800">
+              Unlike traditional systems, TVET CDACC portfolios calculate qualification by cumulative recorded credit progress hours. This module calculates your exact safety buffer or makeup periods needed.
+            </p>
+          </div>
+
+          <div className="bg-white rounded-xl p-3 border border-emerald-100/40 flex flex-col justify-between space-y-2">
+            <span className="text-[9px] uppercase font-mono tracking-wider font-bold text-slate-400 block h-3">Compliance Diagnosis</span>
+            {averageAttendancePct >= 80 ? (
+              (() => {
+                // Calculate allowable hours to miss before falling below critical 75%
+                // A / (R + y) >= 0.75 => y <= (4A - 3R) / 3
+                const allowedToMiss75 = Math.max(0, Math.floor((4 * totalAttendedHours - 3 * totalRequiredHours) / 3));
+                return (
+                  <div>
+                    <span className="text-emerald-700 text-xs font-bold font-sans flex items-center gap-1 leading-none">
+                      <CheckCircle className="h-4 w-4 text-emerald-500" /> Safety Margins Secure
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                      You are exceeding the 80% mark. You can safely miss up to <strong>{allowedToMiss75} hours</strong> of subsequent lectures before dropping below the critical <strong>75%</strong> CDACC exam eligibility cutoff.
+                    </p>
+                  </div>
+                );
+              })()
+            ) : averageAttendancePct >= 75 ? (
+              (() => {
+                // Calculate hours needed to hit 80%
+                // (A + x) / (R + x) >= 0.8 => x >= 4R - 5A
+                const reqToHit80 = Math.max(0, Math.round((4 * totalRequiredHours - 5 * totalAttendedHours)));
+                return (
+                  <div>
+                    <span className="text-amber-600 text-xs font-bold font-sans flex items-center gap-1">
+                      <AlertTriangle className="h-4 w-4 text-amber-500" /> Caution: Marginal Registry Zone
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                      You are in the probationary registration tier. You must attend the next <strong>{reqToHit80} credit hours</strong> of instruction fully Present to restore your <strong>80% Golden Status</strong>.
+                    </p>
+                  </div>
+                );
+              })()
+            ) : (
+              (() => {
+                // Calculate hours needed to hit 75%
+                // (A + x) / (R + x) >= 0.75 => x >= 3R - 4A
+                const reqToHit75 = Math.max(0, Math.round((3 * totalRequiredHours - 4 * totalAttendedHours)));
+                return (
+                  <div>
+                    <span className="text-rose-600 text-xs font-bold animate-pulse font-sans flex items-center gap-1">
+                      <XCircle className="h-4 w-4 text-rose-500" /> Registration Disqualified
+                    </span>
+                    <p className="text-[10px] text-slate-500 leading-relaxed mt-1">
+                      Your attendance is below the 75% threshold. You require exactly <strong>{reqToHit75} consecutive class hours</strong> of perfect attendance to restore your Registry rights. Please request makeup lab rosters.
+                    </p>
+                  </div>
+                );
+              })()
+            )}
+          </div>
+        </div>
+
       </div>
 
       {/* NEW SESSION LOGGER POPUP DOCK */}

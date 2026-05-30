@@ -5,7 +5,8 @@
 
 import React from "react";
 import { CDACCDashboardData, UnitOfLearning } from "../types.ts";
-import { BarChart, Percent, TrendingUp, HelpCircle, GraduationCap, Award, BookOpen } from "lucide-react";
+import { motion } from "motion/react";
+import { BarChart, Percent, TrendingUp, HelpCircle, GraduationCap, Award, BookOpen, Layers, CheckCircle2, AlertCircle, Sparkles } from "lucide-react";
 
 interface PerformanceGraphsProps {
   data: CDACCDashboardData;
@@ -210,6 +211,187 @@ export default function PerformanceGraphs({ data, onNavigateToTab }: Performance
         </div>
 
       </div>
+
+      {/* NEW COMPREHENSIVE VISUALIZATION: POE BINDER MATURITY MATRIX */}
+      <motion.div 
+        initial={{ opacity: 0, y: 15 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm font-sans"
+      >
+        <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-slate-100 pb-4 mb-6 gap-3">
+          <div>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-1.5 font-display uppercase tracking-wider">
+              <Layers className="h-4.5 w-4.5 text-emerald-500" /> Syllabus PoE Binder Maturity Matrix & Competence Balance
+            </h3>
+            <p className="text-slate-400 text-[11px] mt-0.5">
+              Live audit indexing of student continuous evidence files and digital sign-offs
+            </p>
+          </div>
+          <span className="self-start md:self-auto bg-emerald-50 text-emerald-700 text-[10px] font-mono font-bold px-2.5 py-1 rounded-full border border-emerald-150 uppercase tracking-widest leading-none">
+            Registry Auditable Profile
+          </span>
+        </div>
+
+        {/* COMPREHENSIVE SUMMARY MATRIX METRICS BLOCK */}
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
+          
+          {/* COLUMN 1: SVG SEGMENTED CIRCLE DONUT (PRECISELY SCALED) */}
+          <div className="md:col-span-4 flex flex-col items-center justify-center border-b md:border-b-0 md:border-r border-slate-150/60 pb-6 md:pb-0 md:pr-6">
+            <div className="relative flex items-center justify-center">
+              
+              {/* Dynamic circular SVG */}
+              <svg className="w-36 h-36 transform -rotate-90">
+                {/* Background Ring */}
+                <circle 
+                  cx="72" 
+                  cy="72" 
+                  r="56" 
+                  className="stroke-slate-100 fill-transparent" 
+                  strokeWidth="11" 
+                />
+                {/* Progress Ring */}
+                <motion.circle
+                  cx="72"
+                  cy="72"
+                  r="56"
+                  className="stroke-emerald-500 fill-transparent"
+                  strokeWidth="11"
+                  strokeLinecap="round"
+                  initial={{ strokeDasharray: "351.85", strokeDashoffset: "351.85" }}
+                  animate={{ 
+                    strokeDashoffset: (351.85 - (351.85 * (
+                      data.units.filter(u => u.poeStatus === "Certified").length + 
+                      data.units.filter(u => u.poeStatus === "Ready for Assessment").length
+                    )) / (data.units.length || 1)) 
+                  }}
+                  transition={{ duration: 1.2, ease: "easeOut" }}
+                />
+              </svg>
+
+              {/* Inner central metrics */}
+              <div className="absolute text-center space-y-0.5">
+                <span className="text-2xl font-bold text-slate-800 tracking-tighter block font-display">
+                  {Math.round(((
+                    data.units.filter(u => u.poeStatus === "Certified").length + 
+                    data.units.filter(u => u.poeStatus === "Ready for Assessment").length
+                  ) / (data.units.length || 1)) * 100)}%
+                </span>
+                <span className="text-[9px] uppercase text-slate-400 font-mono tracking-wider font-extrabold block">
+                  Binder Ready
+                </span>
+              </div>
+            </div>
+
+            <div className="text-center mt-4">
+              <span className="text-xs text-slate-500 font-medium">
+                {data.units.filter(u => u.poeStatus === "Certified" || u.poeStatus === "Ready for Assessment").length} of {data.units.length} Units Assessable
+              </span>
+            </div>
+          </div>
+
+          {/* COLUMN 2: PROGRESS MATRIX LABELS AND SEGMENTED BARS */}
+          <div className="md:col-span-8 space-y-4">
+            
+            {/* PROGRESS SECTION 1: CERTIFIED STATUS (DEEP EMERALD ACCENT) */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-semibold">
+                <span className="text-emerald-700 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                  Certified Units (CDACC Signed Off)
+                </span>
+                <span className="font-mono text-slate-600">
+                  {data.units.filter(u => u.poeStatus === "Certified").length} / {data.units.length}
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(data.units.filter(u => u.poeStatus === "Certified").length / (data.units.length || 1)) * 100}%` }}
+                  transition={{ duration: 0.9, ease: "circOut" }}
+                  className="bg-emerald-500 h-full rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* PROGRESS SECTION 2: READY STATUS (INDIGO ACCENT) */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-semibold">
+                <span className="text-indigo-700 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-indigo-500"></span>
+                  Ready to Assess (Evidence Complete)
+                </span>
+                <span className="font-mono text-slate-600">
+                  {data.units.filter(u => u.poeStatus === "Ready for Assessment").length} / {data.units.length}
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(data.units.filter(u => u.poeStatus === "Ready for Assessment").length / (data.units.length || 1)) * 100}%` }}
+                  transition={{ duration: 0.9, ease: "circOut", delay: 0.1 }}
+                  className="bg-indigo-500 h-full rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* PROGRESS SECTION 3: IN PROGRESS STATUS (AMBER ACCENT) */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-semibold">
+                <span className="text-amber-700 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-amber-500"></span>
+                  In-Progress Drafts (Syllabus Running)
+                </span>
+                <span className="font-mono text-slate-600">
+                  {data.units.filter(u => u.poeStatus === "In Progress").length} / {data.units.length}
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(data.units.filter(u => u.poeStatus === "In Progress").length / (data.units.length || 1)) * 100}%` }}
+                  transition={{ duration: 0.9, ease: "circOut", delay: 0.2 }}
+                  className="bg-amber-400 h-full rounded-full"
+                />
+              </div>
+            </div>
+
+            {/* PROGRESS SECTION 4: NOT STARTED (SLATE ACCENT) */}
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-xs font-semibold">
+                <span className="text-slate-500 flex items-center gap-1.5">
+                  <span className="h-2 w-2 rounded-full bg-slate-300"></span>
+                  Not Started (Pending Term Activation)
+                </span>
+                <span className="font-mono text-slate-600">
+                  {data.units.filter(u => u.poeStatus === "Not Started").length} / {data.units.length}
+                </span>
+              </div>
+              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                <motion.div 
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(data.units.filter(u => u.poeStatus === "Not Started").length / (data.units.length || 1)) * 100}%` }}
+                  transition={{ duration: 0.9, ease: "circOut", delay: 0.3 }}
+                  className="bg-slate-300 h-full rounded-full"
+                />
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+        {/* AUDITING TIPS BANNER */}
+        <div className="mt-6 p-4 bg-slate-50 border border-slate-150 rounded-xl flex items-start gap-3">
+          <CheckCircle2 className="h-4.5 w-4.5 text-emerald-600 shrink-0 mt-0.5 animate-pulse" />
+          <div className="space-y-1">
+            <span className="text-xs font-bold text-slate-800 font-display">CDACC National Exam Readiness Indicator</span>
+            <p className="text-[11px] leading-relaxed text-slate-500">
+              Your overall PoE Completion percentage is monitored automatically. Live CDACC criteria dictates a minimum <strong>75% Binder Ready index</strong> along with safe registry clearance status for exams enrollment. Upload missing assessments directly using the <strong>Syllabus Grades</strong> tab to bump your profile completeness.
+            </p>
+          </div>
+        </div>
+      </motion.div>
 
       {/* FOOTER RESOURCE SUGGESTION CARD */}
       <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md border border-slate-800 flex flex-col md:flex-row items-center justify-between gap-5">

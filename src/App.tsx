@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect } from "react";
-import { initialCDACCData } from "./initialData.ts";
+import { motion, AnimatePresence } from "motion/react";
+import { initialCDACCData, CDACC_CURRICULA_PRESETS } from "./initialData.ts";
 import { CDACCDashboardData, PoEStatus, CompetenceStatus, AssessmentRecord, Deadline, StudentProfile, AttendanceSession, UnitOfLearning } from "./types.ts";
 
 import DashboardOverview from "./components/DashboardOverview.tsx";
@@ -39,7 +40,7 @@ import {
   deleteDoc 
 } from "firebase/firestore";
 
-import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck, Download } from "lucide-react";
 
 export default function App() {
   // Durable local storage persistence key
@@ -74,6 +75,17 @@ export default function App() {
 
   // State: Custom Toast Overlay Reminders queue
   const [activeToasts, setActiveToasts] = useState<{ id: string; title: string; body: string }[]>([]);
+
+  // State: Progressive Web App (PWA) installation trackers
+  const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+  const [isAppInstalled, setIsAppInstalled] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      const isStandalone = window.matchMedia("(display-mode: standalone)").matches || (window.navigator as any).standalone === true;
+      return isStandalone;
+    }
+    return false;
+  });
+  const [showPwaGuide, setShowPwaGuide] = useState<boolean>(false);
 
   // State: Collapsible and responsive Sidebar navigation panels
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
@@ -302,6 +314,55 @@ export default function App() {
     });
   };
 
+  // PWA Prompt Listeners Setup & Handlers
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handleBeforePrompt = (e: Event) => {
+      e.preventDefault();
+      setPwaPrompt(e);
+      triggerPushAlert(
+        "📱 Install Native CDACC App",
+        "Install this tracker directly to your device desktop/home screen for full offline-ready capability!"
+      );
+    };
+
+    const handleAppInstalled = () => {
+      setIsAppInstalled(true);
+      setPwaPrompt(null);
+      triggerPushAlert(
+        "🎉 CDACC Hub Native App Active",
+        "Successfully installed! Enjoy seamless competency tracking directly from your launcher."
+      );
+    };
+
+    window.addEventListener("beforeinstallprompt", handleBeforePrompt);
+    window.addEventListener("appinstalled", handleAppInstalled);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handleBeforePrompt);
+      window.removeEventListener("appinstalled", handleAppInstalled);
+    };
+  }, []);
+
+  const handleInstallAppPWA = async () => {
+    if (!pwaPrompt) {
+      setShowPwaGuide(true);
+      return;
+    }
+    try {
+      pwaPrompt.prompt();
+      const choice = await pwaPrompt.userChoice;
+      if (choice.outcome === "accepted") {
+        setIsAppInstalled(true);
+      }
+      setPwaPrompt(null);
+    } catch (err) {
+      console.warn("PWA Prompt invocation error:", err);
+      setShowPwaGuide(true);
+    }
+  };
+
   // Action: Add continuous assessment grade record
   // Action: Add continuous assessment grade record
   const handleAddAssessment = async (unitId: string, assessment: AssessmentRecord) => {
@@ -527,6 +588,57 @@ export default function App() {
     }
   };
 
+  // Switch/Load genuine Kenyan CDACC Course preset
+  const handleLoadCurriculaPreset = async (key: string) => {
+    const preset = CDACC_CURRICULA_PRESETS[key];
+    if (!preset) return;
+
+    const customizedPreset = {
+      ...preset,
+      student: {
+        ...preset.student,
+        name: user?.displayName || data.student.name || preset.student.name,
+        photoUrl: data.student.photoUrl || preset.student.photoUrl || "",
+        email: user?.email || data.student.email || preset.student.email || "",
+      }
+    };
+
+    setData(customizedPreset);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(customizedPreset));
+    triggerPushAlert("Syllabus Switched ✔", `Successfully loaded course profile: ${preset.student.courseName}`);
+
+    if (user && db) {
+      try {
+        triggerPushAlert("☁ Cloud Syncing", "Replacing syllabus units on your live CDACC account...");
+        
+        // 1. Write student profile
+        await setDoc(doc(db, 'students', user.uid), customizedPreset.student);
+        
+        // 2. Upload new units
+        for (const unit of customizedPreset.units) {
+          await setDoc(doc(db, 'students', user.uid, 'units', unit.id), unit);
+        }
+        
+        // 3. Upload new deadlines
+        for (const dl of customizedPreset.deadlines) {
+          await setDoc(doc(db, 'students', user.uid, 'deadlines', dl.id), dl);
+        }
+        
+        // 4. Upload attendance logs
+        if (customizedPreset.attendanceLogs) {
+          for (const l of customizedPreset.attendanceLogs) {
+            await setDoc(doc(db, 'students', user.uid, 'attendanceLogs', l.id), l);
+          }
+        }
+        
+        triggerPushAlert("✓ Sync Complete", "New curriculum successfully synchronized.");
+      } catch (err: any) {
+        console.error("Firestore switch failed:", err);
+        handleFirestoreError(err, OperationType.UPDATE, `students/${user.uid}`);
+      }
+    }
+  };
+
   // Reset helper
   const handleResetAppToDefault = async () => {
     if (confirm("Reset application? All your recorded test scores, attendance details and customized milestones will revert to defaults.")) {
@@ -590,6 +702,9 @@ export default function App() {
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
         isOpenMobile={isSidebarOpenMobile}
         onToggleMobile={() => setIsSidebarOpenMobile(!isSidebarOpenMobile)}
+        pwaPrompt={pwaPrompt}
+        isAppInstalled={isAppInstalled}
+        onInstallApp={handleInstallAppPWA}
       />
 
       {/* RIGHT SIDE MAIN SCROLLABLE CONTENT BLOCK */}
@@ -605,6 +720,17 @@ export default function App() {
           </div>
 
           <div className="flex items-center gap-3">
+            {!isAppInstalled && (
+              <button
+                onClick={handleInstallAppPWA}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-sans text-xs font-bold rounded-xl transition cursor-pointer shadow-xs leading-none"
+                title="Install CDACC Tracker as a Progressive Web App on your device"
+              >
+                <Download className="h-3.5 w-3.5" />
+                <span>Install Native App</span>
+              </button>
+            )}
+
             <button
               onClick={handleRequestPushAuthority}
               className={`p-2 rounded-xl transition cursor-pointer font-sans text-xs ${isNotificationsEnabled ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}
@@ -670,98 +796,108 @@ export default function App() {
           )}
 
           {/* CONDITIONALLY RENDER NAVIGATION TABS */}
-          <div className="animate-fade-in">
-            {activeTab === "dashboard" && (
-              <DashboardOverview
-                data={data}
-                isNotificationsEnabled={isNotificationsEnabled}
-                onRequestNotificationPermission={handleRequestPushAuthority}
-                onNavigateToTab={setActiveTab}
-                onUpdateProfile={handleUpdateProfile}
-              />
-            )}
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeTab}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.18, ease: "easeInOut" }}
+            >
+              {activeTab === "dashboard" && (
+                <DashboardOverview
+                  data={data}
+                  isNotificationsEnabled={isNotificationsEnabled}
+                  onRequestNotificationPermission={handleRequestPushAuthority}
+                  onNavigateToTab={setActiveTab}
+                  onUpdateProfile={handleUpdateProfile}
+                  onLoadCurriculaPreset={handleLoadCurriculaPreset}
+                />
+              )}
 
-            {activeTab === "attendance" && (
-              <AttendanceTracker
-                data={data}
-                onUpdateUnits={async (updatedUnits) => {
-                  setData(prev => ({ ...prev, units: updatedUnits }));
-                  if (user && db) {
-                    for (const unit of updatedUnits) {
-                      try {
-                        await setDoc(doc(db, 'students', user.uid, 'units', unit.id), unit);
-                      } catch (e) {
-                        handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/units/${unit.id}`);
-                      }
-                    }
-                  }
-                }}
-                onUpdateAttendanceLogs={async (updatedLogs) => {
-                  setData(prev => ({ ...prev, attendanceLogs: updatedLogs }));
-                  if (user && db) {
-                    const existingLogs = data.attendanceLogs || [];
-                    if (updatedLogs.length > existingLogs.length) {
-                      const added = updatedLogs.find(l => !existingLogs.some(el => el.id === l.id));
-                      if (added) {
+              {activeTab === "attendance" && (
+                <AttendanceTracker
+                  data={data}
+                  onUpdateUnits={async (updatedUnits) => {
+                    setData(prev => ({ ...prev, units: updatedUnits }));
+                    if (user && db) {
+                      for (const unit of updatedUnits) {
                         try {
-                          await setDoc(doc(db, 'students', user.uid, 'attendanceLogs', added.id), added);
+                          await setDoc(doc(db, 'students', user.uid, 'units', unit.id), unit);
                         } catch (e) {
-                          handleFirestoreError(e, OperationType.CREATE, `students/${user.uid}/attendanceLogs/${added.id}`);
-                        }
-                      }
-                    } else if (updatedLogs.length < existingLogs.length) {
-                      const deleted = existingLogs.find(el => !updatedLogs.some(l => l.id === el.id));
-                      if (deleted) {
-                        try {
-                          await deleteDoc(doc(db, 'students', user.uid, 'attendanceLogs', deleted.id));
-                        } catch (e) {
-                          handleFirestoreError(e, OperationType.DELETE, `students/${user.uid}/attendanceLogs/${deleted.id}`);
+                          handleFirestoreError(e, OperationType.UPDATE, `students/${user.uid}/units/${unit.id}`);
                         }
                       }
                     }
-                  }
-                }}
-                onTriggerInstantPush={triggerPushAlert}
-              />
-            )}
+                  }}
+                  onUpdateAttendanceLogs={async (updatedLogs) => {
+                    setData(prev => ({ ...prev, attendanceLogs: updatedLogs }));
+                    if (user && db) {
+                      const existingLogs = data.attendanceLogs || [];
+                      if (updatedLogs.length > existingLogs.length) {
+                        const added = updatedLogs.find(l => !existingLogs.some(el => el.id === l.id));
+                        if (added) {
+                          try {
+                            await setDoc(doc(db, 'students', user.uid, 'attendanceLogs', added.id), added);
+                          } catch (e) {
+                            handleFirestoreError(e, OperationType.CREATE, `students/${user.uid}/attendanceLogs/${added.id}`);
+                          }
+                        }
+                      } else if (updatedLogs.length < existingLogs.length) {
+                        const deleted = existingLogs.find(el => !updatedLogs.some(l => l.id === el.id));
+                        if (deleted) {
+                          try {
+                            await deleteDoc(doc(db, 'students', user.uid, 'attendanceLogs', deleted.id));
+                          } catch (e) {
+                            handleFirestoreError(e, OperationType.DELETE, `students/${user.uid}/attendanceLogs/${deleted.id}`);
+                          }
+                        }
+                      }
+                    }
+                  }}
+                  onTriggerInstantPush={triggerPushAlert}
+                />
+              )}
 
-            {activeTab === "grades" && (
-              <GradesManager 
-                data={data} 
-                onAddAssessment={handleAddAssessment} 
-                onDeleteAssessment={handleDeleteAssessment}
-                onSelectUnitForAI={handleSelectUnitForAI}
-              />
-            )}
+              {activeTab === "grades" && (
+                <GradesManager 
+                  data={data} 
+                  onAddAssessment={handleAddAssessment} 
+                  onDeleteAssessment={handleDeleteAssessment}
+                  onSelectUnitForAI={handleSelectUnitForAI}
+                />
+              )}
 
-            {activeTab === "poe" && (
-              <PoETrackView 
-                data={data} 
-                onUpdatePoEStatus={handleUpdatePoEStatus} 
-                onSelectUnitForAI={handleSelectUnitForAI}
-              />
-            )}
+              {activeTab === "poe" && (
+                <PoETrackView 
+                  data={data} 
+                  onUpdatePoEStatus={handleUpdatePoEStatus} 
+                  onSelectUnitForAI={handleSelectUnitForAI}
+                  onLoadCurriculaPreset={handleLoadCurriculaPreset}
+                />
+              )}
 
-            {activeTab === "coach" && (
-              <AICoachAdvisor 
-                data={data} 
-                preSelectedUnitCode={preSelectedUnitCode} 
-                onClearPreSelectedUnitCode={() => setPreSelectedUnitCode("")}
-              />
-            )}
+              {activeTab === "coach" && (
+                <AICoachAdvisor 
+                  data={data} 
+                  preSelectedUnitCode={preSelectedUnitCode} 
+                  onClearPreSelectedUnitCode={() => setPreSelectedUnitCode("")}
+                />
+              )}
 
-            {activeTab === "deadlines" && (
-              <ScheduleReminders 
-                data={data}
-                isNotificationsEnabled={isNotificationsEnabled}
-                onRequestNotificationPermission={handleRequestPushAuthority}
-                onAddDeadline={handleAddDeadline}
-                onToggleCompleteDeadline={handleToggleCompleteDeadline}
-                onDeleteDeadline={handleDeleteDeadline}
-                onTriggerInstantPush={triggerPushAlert}
-              />
-            )}
-          </div>
+              {activeTab === "deadlines" && (
+                <ScheduleReminders 
+                  data={data}
+                  isNotificationsEnabled={isNotificationsEnabled}
+                  onRequestNotificationPermission={handleRequestPushAuthority}
+                  onAddDeadline={handleAddDeadline}
+                  onToggleCompleteDeadline={handleToggleCompleteDeadline}
+                  onDeleteDeadline={handleDeleteDeadline}
+                  onTriggerInstantPush={triggerPushAlert}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
 
           {/* FOOTER METRICS STYLING */}
           <footer className="mt-12 pt-6 border-t border-slate-200 text-center text-slate-400 text-[10.5px] font-mono uppercase tracking-widest">
@@ -807,6 +943,94 @@ export default function App() {
         onNotification={triggerPushAlert}
       />
 
+      {/* PWA WALKTHROUGH / GUIDE MODAL */}
+      {showPwaGuide && (
+        <div className="fixed inset-0 bg-slate-900/55 backdrop-blur-xs flex items-center justify-center p-4 z-55">
+          <motion.div
+            initial={{ scale: 0.95, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            className="w-full max-w-md bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden font-sans"
+          >
+            <div className="bg-slate-900 p-5 text-white flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="p-1.5 bg-emerald-605 rounded-lg bg-emerald-600">
+                  <Download className="h-4.5 w-4.5 text-white" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold font-display leading-tight">Install CDACC Native App</h4>
+                  <p className="text-[10px] text-slate-400 font-mono tracking-wider uppercase font-semibold mt-0.5">Progressive Web App Guide</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPwaGuide(false)}
+                className="text-slate-400 hover:text-white text-xs bg-slate-800 p-1.5 rounded-lg cursor-pointer transition border-0 leading-none"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 text-xs leading-relaxed text-slate-650">
+              <p>
+                Adding the <strong className="text-emerald-600 font-bold">Kenya CDACC Tracker</strong> to your home screen turns it into a standalone app, providing faster loads, offline local registries, and native alerts triggers.
+              </p>
+
+              <div className="space-y-3">
+                {/* iOS Device Instructions */}
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <h5 className="font-bold text-slate-800 flex items-center gap-1.5 leading-none">
+                    🍏 Apple iOS / iPadOS
+                  </h5>
+                  <ol className="list-decimal pl-4 space-y-1 text-slate-555 text-[11px] mt-1.5">
+                    <li>Launch the app inside your native <strong>Safari browser</strong>.</li>
+                    <li>Tap the standard <strong>Share</strong> button (📤) in Safari's lower menu bar.</li>
+                    <li>Scroll down and select <strong>"Add to Home Screen"</strong> (➕).</li>
+                    <li>Confirm the moniker and open the app from your native launcher!</li>
+                  </ol>
+                </div>
+
+                {/* Android Device Instructions */}
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <h5 className="font-bold text-slate-800 flex items-center gap-1.5 leading-none">
+                    🤖 Google Android (Chrome)
+                  </h5>
+                  <ol className="list-decimal pl-4 space-y-1 text-slate-555 text-[11px] mt-1.5">
+                    <li>Tap the Chrome options menu button (<strong>⋮</strong>) in the top-right corner.</li>
+                    <li>Tap <strong>"Install App"</strong> or <strong>"Add to Home screen"</strong>.</li>
+                    <li>Follow the screen prompts to register the home shortcut.</li>
+                  </ol>
+                </div>
+
+                {/* Common Desktop Instructions */}
+                <div className="p-3 bg-slate-50 border border-slate-100 rounded-xl space-y-1">
+                  <h5 className="font-bold text-slate-800 flex items-center gap-1.5 leading-none">
+                    💻 Desktop (Chrome, Edge or Brave)
+                  </h5>
+                  <ol className="list-decimal pl-4 space-y-1 text-slate-555 text-[11px] mt-1.5">
+                    <li>Look at the address bar in your browser's header to find the small <strong>Install Icon</strong>.</li>
+                    <li>Alternatively, open the browser's options menu (<strong>⋮</strong>) and click <strong>"Install TVET CDACC..."</strong>.</li>
+                  </ol>
+                </div>
+              </div>
+
+              <div className="flex gap-2 pt-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowPwaGuide(false);
+                    triggerPushAlert(
+                      "🔔 Test Notification Registered",
+                      "This demonstrates how critical deadlines are broadcast natively to your device!"
+                    );
+                  }}
+                  className="flex-1 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11.5px] font-bold rounded-xl transition cursor-pointer text-center border border-emerald-200"
+                >
+                  Close & Try Test Alert
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );

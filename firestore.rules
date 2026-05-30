@@ -93,7 +93,7 @@ service cloud.firestore {
     match /students/{userId} {
       allow get: if isOwner(userId);
       allow create: if isOwner(userId) && isValidStudentProfile(incoming());
-      allow update: if isOwner(userId) && isValidStudentProfile(incoming()) && incoming().admissionNo == existing().admissionNo;
+      allow update: if isOwner(userId) && isValidStudentProfile(incoming());
       allow delete: if isOwner(userId);
 
       match /units/{unitId} {

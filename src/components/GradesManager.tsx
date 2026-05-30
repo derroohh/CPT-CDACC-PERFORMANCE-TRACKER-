@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { CDACCDashboardData, UnitOfLearning, AssessmentRecord, CompetenceStatus } from "../types.ts";
-import { Plus, Trash2, Edit3, ClipboardList, Filter, BookOpen, AlertCircle, Sparkles } from "lucide-react";
+import { Plus, Trash2, Edit3, ClipboardList, Filter, BookOpen, AlertCircle, Sparkles, Target, TrendingUp, CheckCircle2, Award } from "lucide-react";
 
 interface GradesManagerProps {
   data: CDACCDashboardData;
@@ -22,6 +22,7 @@ export default function GradesManager({
 }: GradesManagerProps) {
   const [selectedUnitId, setSelectedUnitId] = useState<string>("all");
   const [showAddForm, setShowAddForm] = useState(false);
+  const [targetScore, setTargetScore] = useState<number>(75);
   
   // Form fields
   const [formUnitId, setFormUnitId] = useState<string>(data.units[0]?.id || "");
@@ -216,6 +217,184 @@ export default function GradesManager({
           </button>
         ))}
       </div>
+
+      {/* TRAINEE PERFORMANCE PROGNOSIS & TARGET OVERRIDE SIMULATOR */}
+      {(() => {
+        const activeUnitsRef = selectedUnitId === "all" 
+          ? data.units 
+          : data.units.filter(u => u.id === selectedUnitId);
+
+        const activeAssessmentsRef = activeUnitsRef.flatMap(u => u.assessments);
+        
+        // Calculate dynamic stats
+        const avgScoreRef = activeAssessmentsRef.length > 0
+          ? Math.round(activeAssessmentsRef.reduce((sum, a) => sum + a.obtainedScore, 0) / activeAssessmentsRef.length)
+          : 0;
+
+        const completedWeightRef = selectedUnitId === "all"
+          ? Math.round(data.units.reduce((sum, u) => sum + u.assessments.reduce((w, a) => w + a.weight, 0), 0) / (data.units.length || 1))
+          : activeUnitsRef[0]?.assessments.reduce((sum, a) => sum + a.weight, 0) || 0;
+
+        const weightedAccruedRef = selectedUnitId === "all"
+          ? Math.round(data.units.reduce((sum, u) => {
+              const uCompWeight = u.assessments.reduce((w, a) => w + a.weight, 0);
+              if (uCompWeight === 0) return sum;
+              const uWeighted = u.assessments.reduce((acc, a) => acc + (a.obtainedScore * (a.weight / 100)), 0);
+              return sum + uWeighted;
+            }, 0) / (data.units.length || 1))
+          : activeUnitsRef[0]?.assessments.reduce((sum, a) => sum + (a.obtainedScore * (a.weight / 100)), 0) || 0;
+
+        const remainingWeightRef = Math.max(0, 100 - completedWeightRef);
+        const scoreNeededVal = remainingWeightRef > 0 
+          ? ((targetScore - weightedAccruedRef) / (remainingWeightRef / 100)) 
+          : 0;
+        const requiredFinalScore = Math.max(0, Math.round(scoreNeededVal));
+
+        const totalActiveUnits = data.units.length;
+        const totalCompetentUnits = data.units.filter(u => u.competenceStatus === CompetenceStatus.COMPETENT).length;
+        const competencyQuotientRef = totalActiveUnits > 0
+          ? Math.round((totalCompetentUnits / totalActiveUnits) * 100)
+          : 0;
+
+        return (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-6 p-5 border border-slate-205 bg-slate-50/40 rounded-2xl border-slate-200">
+            
+            {/* COLUMN 1: ASPIRATIONS CONTROLLER */}
+            <div className="space-y-3.5 pr-0 md:pr-4 md:border-r border-slate-200 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-emerald-600 flex items-center gap-1 leading-none mb-1">
+                  <Target className="h-3.5 w-3.5" /> Target Override Simulator
+                </span>
+                <h4 className="text-xs font-bold text-slate-800">Customize Target Marks</h4>
+                <p className="text-[10.5px] leading-relaxed text-slate-500 mt-1">
+                  Configure custom passing targets to simulate necessary exam scores and competence security.
+                </p>
+              </div>
+
+              <div className="space-y-2 mt-2">
+                <div className="flex justify-between items-center text-xs font-semibold">
+                  <span className="text-slate-600 font-medium">Desired Passing Score</span>
+                  <span className="font-mono text-emerald-600 font-bold bg-emerald-50 px-2 py-0.5 rounded">
+                    {targetScore}%
+                  </span>
+                </div>
+                <input 
+                  type="range"
+                  min="50"
+                  max="95"
+                  value={targetScore}
+                  onChange={(e) => setTargetScore(Number(e.target.value))}
+                  className="w-full accent-emerald-600 cursor-pointer h-1.5 bg-slate-200 rounded-lg"
+                  title="Slide to adjust safety target"
+                />
+                <div className="flex justify-between text-[9px] text-slate-400 font-mono">
+                  <span>50% (Syllabus Pass)</span>
+                  <span>75% (Distinction)</span>
+                  <span>95% (Top Honors)</span>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUMN 2: REAL-TIME PROGNOSIS ALGORITHM */}
+            <div className="space-y-3.5 pr-0 md:pr-4 md:border-r border-slate-200 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-slate-400 flex items-center gap-1 leading-none mb-1">
+                  <TrendingUp className="h-3.5 w-3.5" /> Predictive Calculations
+                </span>
+                <h4 className="text-xs font-bold text-slate-800">CDACC Performance Forecast</h4>
+                <p className="text-[10.5px] leading-relaxed text-slate-500 mt-1">
+                  Scope: <strong>{selectedUnitId === "all" ? "Full Program Syllabus" : activeUnitsRef[0]?.code}</strong>
+                </p>
+              </div>
+
+              <div className="space-y-2">
+                <div className="p-3 rounded-xl bg-white border border-slate-100 flex flex-col justify-between">
+                  {activeAssessmentsRef.length === 0 ? (
+                    <span className="text-[11px] text-slate-400 font-medium italic block text-center py-2">
+                      Please enter a grade below to generate a real-time forecast.
+                    </span>
+                  ) : scoreNeededVal <= 0 ? (
+                    <div className="space-y-1">
+                      <span className="text-emerald-600 font-bold text-[11px] flex items-center gap-1">
+                        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> Target Fully Met!
+                      </span>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        Excellent! Your accrued weighted score of <strong>{weightedAccruedRef}%</strong> already clears your desired target of <strong>{targetScore}%</strong> without further assessments!
+                      </p>
+                    </div>
+                  ) : requiredFinalScore <= 100 ? (
+                    <div className="space-y-1">
+                      <span className="text-slate-705 font-bold text-[11px] flex items-center gap-1 text-slate-700">
+                        <CheckCircle2 className="h-3.5 w-3.5 text-blue-500" /> Milestone Highly Achievable
+                      </span>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        To hit your <strong>{targetScore}%</strong> target, you require an average score of <strong className="text-emerald-600 font-bold font-mono text-[11px]">{requiredFinalScore}%</strong> across the remaining <strong>{remainingWeightRef}%</strong> of evaluation weight.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-1">
+                      <span className="text-rose-500 font-bold text-[11px] flex items-center gap-1 animate-pulse">
+                        <AlertCircle className="h-3.5 w-3.5" /> Target Mathematically Out of Reach
+                      </span>
+                      <p className="text-[10px] text-slate-500 leading-relaxed">
+                        You need <strong>{requiredFinalScore}%</strong> on remaining work, which is impossible. We highly recommend completing extra corrective remendials to restore qualification options.
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Micro Weighted Completed Progress layout */}
+                <div className="space-y-1">
+                  <div className="flex justify-between items-center text-[10px] text-slate-400">
+                    <span className="font-semibold">{completedWeightRef}% Coursework Complete</span>
+                    <span className="font-mono">{remainingWeightRef}% Exams weight remaining</span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-1.5 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 rounded-full" style={{ width: `${completedWeightRef}%` }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUMN 3: COMPREHENSIVE CDACC STAT MODULES */}
+            <div className="space-y-3.5 flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] uppercase font-mono font-bold tracking-widest text-indigo-600 flex items-center gap-1 leading-none mb-1">
+                  <Award className="h-3.5 w-3.5" /> TRAINEE PORTFOLIO INDEX
+                </span>
+                <h4 className="text-xs font-bold text-slate-800">Competency Quotient Gauge</h4>
+                <p className="text-[10.5px] leading-relaxed text-slate-500 mt-1">
+                  Audit summary of all trade learning outcomes registered in the database.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 pb-1">
+                <div className="p-2.5 bg-white border border-slate-100 rounded-xl">
+                  <span className="text-[8.5px] uppercase font-semibold text-slate-400 font-mono block">Competence index</span>
+                  <span className="text-base font-black font-display text-slate-800 tracking-tight block">
+                    {competencyQuotientRef}%
+                  </span>
+                  <span className="text-[9.5px] text-slate-400 mt-0.5 block leading-none">
+                    {totalCompetentUnits} / {totalActiveUnits} Competent
+                  </span>
+                </div>
+
+                <div className="p-2.5 bg-white border border-slate-100 rounded-xl">
+                  <span className="text-[8.5px] uppercase font-semibold text-slate-400 font-mono block">GPA Quotient</span>
+                  <span className="text-base font-black font-display text-slate-800 tracking-tight block">
+                    {avgScoreRef > 0 ? (avgScoreRef / 20).toFixed(2) : "0.00"}
+                  </span>
+                  <span className="text-[9.5px] text-slate-400 mt-0.5 block leading-none font-mono">
+                    Scale 5.0 (CBET)
+                  </span>
+                </div>
+              </div>
+
+            </div>
+
+          </div>
+        );
+      })()}
 
       {/* TABLE/LIST RENDER */}
       <div className="overflow-x-auto border border-slate-200 rounded-2xl">

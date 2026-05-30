@@ -21,7 +21,17 @@ import {
   Award,
   BookOpen,
   Activity,
-  Milestone
+  Milestone,
+  Cpu,
+  Bolt,
+  ChefHat,
+  Hammer,
+  Car,
+  Sparkles,
+  Layers,
+  Sprout,
+  Briefcase,
+  Scissors
 } from "lucide-react";
 import CDACCSummaryCards from "./CDACCSummaryCards.tsx";
 import PerformanceGraphs from "./PerformanceGraphs.tsx";
@@ -32,6 +42,7 @@ interface DashboardOverviewProps {
   onRequestNotificationPermission: () => void;
   onNavigateToTab: (tabId: string) => void;
   onUpdateProfile: (updated: StudentProfile) => void;
+  onLoadCurriculaPreset: (key: string) => void;
 }
 
 export default function DashboardOverview({
@@ -40,6 +51,7 @@ export default function DashboardOverview({
   onRequestNotificationPermission,
   onNavigateToTab,
   onUpdateProfile,
+  onLoadCurriculaPreset,
 }: DashboardOverviewProps) {
   const { student } = data;
 
@@ -153,6 +165,146 @@ export default function DashboardOverview({
   return (
     <div className="space-y-6 font-sans">
       
+      {/* KENYAN CDACC SYLLABUS PATHWAY INTERACTIVE SWITCHER */}
+      <div className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 pb-3 border-b border-slate-100">
+          <div>
+            <span className="text-[10px] uppercase font-mono font-extrabold tracking-widest text-emerald-600 flex items-center gap-1.5 leading-none mb-1">
+              <Sparkles className="h-3 w-3 animate-pulse" /> National CDACC Curriculum Presets
+            </span>
+            <h3 className="text-sm font-bold text-slate-800 font-display">
+              Change Kenyan TVET Trade Syllabus Pathway
+            </h3>
+          </div>
+          <span className="text-[10.5px] text-slate-400 font-medium">
+            Select your syllabus pathway to load official units of learning, deadlines, and topics.
+          </span>
+        </div>
+
+        {/* Trade quick cards grid */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+          {[
+            {
+              key: "ict",
+              title: "ICT Technician",
+              subtitle: "Software & Networks",
+              duration: "Level 6",
+              icon: Cpu,
+              color: "text-blue-500 bg-blue-50 border-blue-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "electrical",
+              title: "Electrical Power",
+              subtitle: "Industrial Wiring",
+              duration: "Level 6",
+              icon: Bolt,
+              color: "text-amber-500 bg-amber-50 border-amber-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "hospitality",
+              title: "Culinary Arts",
+              subtitle: "Food & Beverage",
+              duration: "Level 6",
+              icon: ChefHat,
+              color: "text-rose-500 bg-rose-50 border-rose-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "construction",
+              title: "Civil Engineering",
+              subtitle: "Structural CAD",
+              duration: "Level 6",
+              icon: Hammer,
+              color: "text-emerald-500 bg-emerald-50 border-emerald-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "automotive",
+              title: "Automotive Tech",
+              subtitle: "Engine Diagnostics",
+              duration: "Level 6",
+              icon: Car,
+              color: "text-indigo-500 bg-indigo-55 border-indigo-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "agriculture",
+              title: "Agriculture",
+              subtitle: "Agro-Business",
+              duration: "Level 6",
+              icon: Sprout,
+              color: "text-teal-600 bg-teal-50 border-teal-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "business",
+              title: "Business Mgmt",
+              subtitle: "SACCO Admin",
+              duration: "Level 6",
+              icon: Briefcase,
+              color: "text-violet-600 bg-violet-50 border-violet-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            },
+            {
+              key: "fashion",
+              title: "Fashion Design",
+              subtitle: "Pattern Apparel",
+              duration: "Level 6",
+              icon: Scissors,
+              color: "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100",
+              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
+            }
+          ].map((preset) => {
+            const Icon = preset.icon;
+            // Determine active preset based on either student courseName or some smart match
+            const isActive = student.courseName.toLowerCase().includes(preset.title.toLowerCase()) || 
+                             student.courseName.toLowerCase().includes(preset.subtitle.toLowerCase()) ||
+                             (preset.key === "ict" && student.courseName.toLowerCase().includes("information")) ||
+                             (preset.key === "ict" && student.courseName.toLowerCase().includes("ict")) ||
+                             (preset.key === "agriculture" && student.courseName.toLowerCase().includes("agri")) ||
+                             (preset.key === "business" && student.courseName.toLowerCase().includes("bus")) ||
+                             (preset.key === "fashion" && student.courseName.toLowerCase().includes("fas"));
+
+            return (
+              <motion.button
+                key={preset.key}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => onLoadCurriculaPreset(preset.key)}
+                className={`text-left p-3 rounded-xl border cursor-pointer transition-all duration-200 select-none flex flex-col justify-between h-[115px] min-w-0
+                  ${isActive ? preset.activeColor : "border-slate-150 bg-slate-50/30 hover:bg-slate-50"}
+                `}
+              >
+                <div className="flex items-center justify-between w-full">
+                  <div className={`p-1.5 rounded-lg ${preset.color} shrink-0`}>
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  {isActive ? (
+                    <span className="bg-emerald-500 text-white text-[7.5px] font-extrabold px-1.5 py-0.5 rounded uppercase font-mono tracking-wider">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="text-[7.5px] text-slate-450 font-bold uppercase font-mono tracking-wider">
+                      {preset.duration}
+                    </span>
+                  )}
+                </div>
+                <div className="pt-2 min-w-0">
+                  <h4 className="text-[11px] font-bold text-slate-850 leading-tight truncate">
+                    {preset.title}
+                  </h4>
+                  <p className="text-[9px] text-slate-450 font-medium truncate mt-0.5">
+                    {preset.subtitle}
+                  </p>
+                </div>
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* 1. HERO STUDENT BIO CARD WITH INTEGRATED PROFILE UPLOADER */}
       <motion.div 
         initial={{ opacity: 0, y: 15 }}

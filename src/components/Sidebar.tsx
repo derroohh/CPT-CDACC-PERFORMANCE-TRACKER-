@@ -5,6 +5,7 @@
 
 import React from "react";
 import { StudentProfile } from "../types.ts";
+import { motion } from "motion/react";
 import { 
   LayoutDashboard, 
   UserCheck, 
@@ -20,7 +21,8 @@ import {
   LogIn, 
   Menu,
   Sparkles,
-  Award
+  Award,
+  Download
 } from "lucide-react";
 
 interface SidebarProps {
@@ -35,6 +37,9 @@ interface SidebarProps {
   onToggleCollapse: () => void;
   isOpenMobile: boolean;
   onToggleMobile: () => void;
+  pwaPrompt: any;
+  isAppInstalled: boolean;
+  onInstallApp: () => void;
 }
 
 export default function Sidebar({
@@ -49,6 +54,9 @@ export default function Sidebar({
   onToggleCollapse,
   isOpenMobile,
   onToggleMobile,
+  pwaPrompt,
+  isAppInstalled,
+  onInstallApp,
 }: SidebarProps) {
 
   const navItems = [
@@ -193,7 +201,7 @@ export default function Sidebar({
           </div>
 
           {/* DYNAMIC LIST OF NAV SYSTEM PAGES */}
-          <nav className="p-3 space-y-1.5">
+          <nav className="p-3 space-y-1.5 relative">
             {navItems.map((item) => {
               const IconComp = item.icon;
               const isSelected = activeTab === item.id;
@@ -202,27 +210,38 @@ export default function Sidebar({
                 <button
                   key={item.id}
                   onClick={() => handleItemClick(item.id)}
-                  className={`w-full flex items-center transition ease-in-out cursor-pointer rounded-xl text-left py-2.5 px-3.5 text-xs font-semibold group relative gap-3.5
+                  className={`w-full flex items-center cursor-pointer rounded-xl text-left py-2.5 px-3.5 text-xs font-semibold group relative gap-3.5 transition-colors duration-200
                     ${isSelected 
-                      ? "bg-emerald-600 text-white font-bold shadow-md shadow-emerald-600/10" 
-                      : "text-slate-400 hover:bg-slate-800/80 hover:text-slate-100"
+                      ? "text-white font-bold" 
+                      : "text-slate-400 hover:bg-slate-800/50 hover:text-slate-100"
                     }
                     ${isCollapsed ? "md:justify-center md:px-2" : ""}
                   `}
                 >
-                  <IconComp className={`h-4.5 w-4.5 shrink-0 ${isSelected ? "text-white" : "text-slate-400 group-hover:text-emerald-400"}`} />
-                  
-                  {/* Item Text labels */}
-                  <span className={`transition-opacity duration-200 truncate ${isCollapsed ? "md:hidden" : "opacity-100"}`}>
-                    {item.label}
-                  </span>
-
-                  {/* AI Badge indicators */}
-                  {item.badge && !isCollapsed && (
-                    <span className="ml-auto bg-emerald-500/10 text-emerald-400 text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded font-mono uppercase shrink-0">
-                      {item.badge}
-                    </span>
+                  {/* Sliding active background indicator */}
+                  {isSelected && (
+                    <motion.div
+                      layoutId="sidebarActiveBg"
+                      className="absolute inset-0 bg-emerald-600 rounded-xl -z-10 shadow-md shadow-emerald-600/20"
+                      transition={{ type: "spring", stiffness: 350, damping: 28 }}
+                    />
                   )}
+
+                  <span className="relative z-10 flex items-center w-full gap-3.5">
+                    <IconComp className={`h-4.5 w-4.5 shrink-0 transition-colors duration-200 ${isSelected ? "text-white" : "text-slate-400 group-hover:text-emerald-400"}`} />
+                    
+                    {/* Item Text labels */}
+                    <span className={`transition-opacity duration-200 truncate ${isCollapsed ? "md:hidden" : "opacity-100"}`}>
+                      {item.label}
+                    </span>
+
+                    {/* AI Badge indicators */}
+                    {item.badge && !isCollapsed && (
+                      <span className="ml-auto bg-emerald-500/15 text-emerald-400 text-[8px] font-black tracking-widest px-1.5 py-0.5 rounded font-mono uppercase shrink-0">
+                        {item.badge}
+                      </span>
+                    )}
+                  </span>
 
                   {/* Hovering tooltips for collapsed icons */}
                   {isCollapsed && (
@@ -240,13 +259,23 @@ export default function Sidebar({
         {/* LOWER DATABASE STORAGE ENGINE CONTROLS */}
         <div className="p-4 border-t border-slate-800/60 bg-slate-950/25">
           {isCollapsed ? (
-            <div className="text-center">
+            <div className="text-center space-y-3">
+              {!isAppInstalled && (
+                <button
+                  type="button"
+                  onClick={onInstallApp}
+                  className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl cursor-pointer transition flex items-center justify-center mx-auto"
+                  title="Install CDACC PWA to your device"
+                >
+                  <Download className="h-4 w-4" />
+                </button>
+              )}
               <button
                 onClick={user ? onLogout : onLogin}
-                className={`p-2 rounded-xl border cursor-pointer transition ${
+                className={`p-2 rounded-xl border cursor-pointer transition mx-auto flex items-center justify-center ${
                   user 
-                    ? "bg-slate-800 hover:bg-rose-550 hover:border-rose-400 hover:text-rose-100 text-slate-400 border-slate-700" 
-                    : "bg-emerald-555 border-emerald-600 text-emerald-400 hover:bg-emerald-650"
+                    ? "bg-slate-800 hover:bg-rose-500 hover:border-rose-400 hover:text-rose-100 text-slate-400 border-slate-700" 
+                    : "bg-emerald-600 border-emerald-550 text-emerald-400 hover:bg-emerald-650"
                 }`}
                 title={user ? `Signed in as: ${user.email}. Click to Logout` : "Sign in to synchronize database storage"}
               >
@@ -256,6 +285,40 @@ export default function Sidebar({
           ) : (
             <div className="space-y-3">
               
+              {/* PWA Install Controller Card */}
+              <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] text-emerald-550 font-mono tracking-wider font-extrabold flex items-center gap-1.5 uppercase leading-none">
+                    <Download className="h-3.5 w-3.5 text-emerald-400 animate-bounce" /> PWA Launcher
+                  </span>
+                  {isAppInstalled ? (
+                    <span className="bg-emerald-500/15 text-emerald-400 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase leading-none border border-emerald-500/20">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="bg-blue-500/15 text-blue-400 text-[8px] font-mono font-bold px-1.5 py-0.5 rounded uppercase leading-none border border-blue-500/20">
+                      Ready
+                    </span>
+                  )}
+                </div>
+                <p className="text-[10px] leading-relaxed text-slate-400 font-sans">
+                  {isAppInstalled ? (
+                    "Running native standalone app with full offline capabilities."
+                  ) : (
+                    "Install Tracker directly to your desktop or mobile home screen."
+                  )}
+                </p>
+                {!isAppInstalled && (
+                  <button
+                    type="button"
+                    onClick={onInstallApp}
+                    className="w-full flex items-center justify-center gap-1.5 py-1.5 bg-emerald-605 hover:bg-emerald-700 text-white text-[11px] font-bold rounded-lg transition cursor-pointer bg-emerald-600"
+                  >
+                    <Download className="h-3 w-3 animate-pulse" /> Install App PWA
+                  </button>
+                )}
+              </div>
+
               {/* Sync connectivity summary */}
               <div className="p-3 bg-slate-900 border border-slate-800 rounded-xl space-y-2">
                 <div className="flex items-center justify-between">

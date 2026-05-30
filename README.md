@@ -6,8 +6,7 @@
 
 This contains everything you need to run your app locally.
 
-View your app in AI Studio:
- https://kenyan-cdacc-student-tracker-316898350015.europe-west2.run.app
+View your app in AI Studio: https://ai.studio/apps/2cf0edae-0bee-491f-aa58-6545d5cee7e4
 
 ## Run Locally
 
