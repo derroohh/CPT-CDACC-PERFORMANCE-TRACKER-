@@ -261,7 +261,7 @@ export default function AICoachAdvisor({
     const unitToken = overrideFocus !== undefined ? overrideFocus : focusUnit;
 
     // Elegant fallback simulation check
-    if (offlineBrainEnabled || !process.env.GEMINI_API_KEY && window.location.hostname === "localhost") {
+    if (offlineBrainEnabled) {
       // Simulate real-time delay
       await new Promise((resolve) => setTimeout(resolve, 1400));
       const text = unitToken && OFFLINE_COMPETENCY_AUDITS[unitToken]
@@ -348,7 +348,7 @@ export default function AICoachAdvisor({
     setSessions(updatedSessions);
     setIsSendingMessage(true);
 
-    if (offlineBrainEnabled || !process.env.GEMINI_API_KEY && window.location.hostname === "localhost") {
+    if (offlineBrainEnabled) {
       await new Promise(r => setTimeout(r, 900));
       let responseText = `### 💡 Offline TVET Mentor Advice
 Thank you for your question: *"${currentMessage}"*. Here is a practical CDACC-compliant explanation:
@@ -809,13 +809,12 @@ To verify competencies for External National Examiners, your portfolio binder MU
             <button
               onClick={() => {
                 setOfflineBrainEnabled(!offlineBrainEnabled);
-                // Trigger success visual cue
                 playSynthesizedTone();
               }}
-              className={`px-2 py-0.5 rounded-md text-[8.5px] font-mono uppercase font-bold tracking-widest transition-all ${offlineBrainEnabled ? "bg-amber-500 text-slate-950" : "bg-white/10 text-emerald-300"}`}
-              title="Toggle offline simulated competency engine"
+              className={`px-2 py-1 rounded-lg text-[8.5px] font-mono uppercase font-black tracking-widest transition-all ${offlineBrainEnabled ? "bg-amber-550 text-slate-900 border border-amber-400" : "bg-emerald-600/30 text-emerald-300 border border-emerald-500/30"}`}
+              title="Toggle between real Gemini Claude-based cloud API and offline local simulator fallback"
             >
-              {offlineBrainEnabled ? "● Offline Brain" : "○ Local Backup"}
+              {offlineBrainEnabled ? "● Local Offline" : "⚡ Cloud Live"}
             </button>
           </div>
 

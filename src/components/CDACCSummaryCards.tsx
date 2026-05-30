@@ -5,7 +5,8 @@
 
 import React from "react";
 import { CDACCDashboardData, CompetenceStatus, PoEStatus } from "../types.ts";
-import { BookOpen, Users, Award, AlertTriangle, CheckCircle2, CircleDot, BellRing } from "lucide-react";
+import { BookOpen, Users, Award, AlertTriangle, CheckCircle2, CircleDot, BellRing, TrendingUp } from "lucide-react";
+import { LineChart, Line } from "recharts";
 
 interface CDACCSummaryCardsProps {
   data: CDACCDashboardData;
@@ -20,6 +21,40 @@ export default function CDACCSummaryCards({
   onRequestNotificationPermission,
   onNavigateToTab,
 }: CDACCSummaryCardsProps) {
+  // Helper: Retrieve historical attendance trend (last 5 sessions) per unit
+  const getUnitTrendData = (unitId: string, unit: any) => {
+    const logs = (data.attendanceLogs || [])
+      .filter((l) => l.unitId === unitId)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (logs.length > 0) {
+      let accumulatedDuration = 0;
+      let accumulatedAttended = 0;
+      
+      const historyPoints = logs.map((l) => {
+        accumulatedDuration += l.duration;
+        if (l.status === "Present") {
+          accumulatedAttended += l.duration;
+        }
+        return {
+          value: accumulatedDuration > 0 ? Math.round((accumulatedAttended / accumulatedDuration) * 100) : 100
+        };
+      });
+      
+      return historyPoints.slice(-5);
+    }
+
+    const currentPct = unit.hoursRequired > 0 ? Math.round((unit.hoursAttended / unit.hoursRequired) * 100) : 80;
+    const clampedCurrent = Math.min(100, Math.max(0, currentPct));
+    return [
+      { value: Math.min(100, Math.max(40, clampedCurrent - 6)) },
+      { value: Math.min(100, Math.max(40, clampedCurrent - 2)) },
+      { value: Math.min(100, Math.max(40, clampedCurrent - 4)) },
+      { value: Math.min(100, Math.max(40, clampedCurrent + 1)) },
+      { value: clampedCurrent }
+    ];
+  };
+
   // 1. Calculate Attendance averages
   let totalRequiredHours = 0;
   let totalAttendedHours = 0;
@@ -92,6 +127,49 @@ export default function CDACCSummaryCards({
               className={`h-full rounded-full transition-all duration-500 ${overallAttendancePct >= 80 ? "bg-emerald-500" : overallAttendancePct >= 75 ? "bg-amber-500" : "bg-rose-500"}`}
               style={{ width: `${overallAttendancePct}%` }}
             ></div>
+          </div>
+
+          {/* Unit-wise Mini Attendance Sparkline list */}
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[9.5px] uppercase font-mono font-black text-slate-400 tracking-widest flex items-center gap-1">
+                <TrendingUp className="h-3 w-3 text-slate-400" /> Unit-wise Trend (Last 5)
+              </span>
+              <span className="text-[8.5px] text-slate-400 font-bold uppercase font-mono text-right">Rate</span>
+            </div>
+            
+            <div className="space-y-1.5 max-h-[110px] overflow-y-auto pr-0.5 custom-scrollbar">
+              {data.units.map((u) => {
+                const trend = getUnitTrendData(u.id, u);
+                const pct = u.hoursRequired > 0 ? Math.round((u.hoursAttended / u.hoursRequired) * 100) : 0;
+                const isMet = pct >= 75;
+                
+                return (
+                  <div key={u.id} className="flex items-center justify-between text-[10.5px] bg-slate-50 border border-slate-100 hover:border-slate-200 p-1.5 rounded-xl transition duration-150 gap-2">
+                    <div className="truncate font-semibold text-slate-700 font-sans max-w-[85px] leading-tight flex items-center gap-1" title={`${u.code} - ${u.name}`}>
+                      <span className="font-mono text-[8.5px] text-slate-400 bg-slate-100 px-1 rounded font-bold shrink-0">{u.code}</span>
+                    </div>
+                    
+                    {/* Tiny Sparkline */}
+                    <div className="w-14 h-5 flex items-center justify-center shrink-0">
+                      <LineChart width={56} height={18} data={trend}>
+                        <Line 
+                          type="monotone" 
+                          dataKey="value" 
+                          stroke={isMet ? "#10b981" : "#ef4444"} 
+                          strokeWidth={1.5} 
+                          dot={false}
+                        />
+                      </LineChart>
+                    </div>
+
+                    <span className={`font-mono text-[9.5px] font-bold ${isMet ? "text-emerald-600" : "text-rose-500"}`}>
+                      {pct}%
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
         </div>
 

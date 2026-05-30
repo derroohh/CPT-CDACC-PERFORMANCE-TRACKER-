@@ -5,7 +5,7 @@
 
 import { initializeApp } from 'firebase/app';
 import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged, User } from 'firebase/auth';
-import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, updateDoc, onSnapshot, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, setDoc, getDoc, collection, getDocs, deleteDoc, updateDoc, onSnapshot, getDocFromServer, enableMultiTabIndexedDbPersistence } from 'firebase/firestore';
 import firebaseConfig from './firebase-applet-config.json';
 
 // Detect whether we are running in actual provisioned online cloud mode or local simulation mode
@@ -25,6 +25,12 @@ if (isFirebaseConfigured) {
     db = initializeFirestore(app, {
       experimentalForceLongPolling: true,
     }, firebaseConfig.firestoreDatabaseId);
+    
+    // Enable offline multi-tab persistence for PWA and client syncs
+    enableMultiTabIndexedDbPersistence(db).catch((err) => {
+      console.warn("Firestore multi-tab IndexedDB offline persistence inactive:", err.message);
+    });
+
     auth = getAuth(app);
   } catch (e) {
     console.error("Firebase SDK failed to initialize: ", e);

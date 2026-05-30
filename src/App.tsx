@@ -17,6 +17,8 @@ import ScheduleReminders from "./components/ScheduleReminders.tsx";
 import AttendanceTracker from "./components/AttendanceTracker.tsx";
 import Sidebar from "./components/Sidebar.tsx";
 import AuthModal from "./components/AuthModal.tsx";
+import SettingsModal from "./components/SettingsModal.tsx";
+import { exportCDACCTranscriptToPDF } from "./utils/pdfExport.ts";
 
 import { 
   auth, 
@@ -41,7 +43,7 @@ import {
   deleteDoc 
 } from "firebase/firestore";
 
-import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck, Download, Cloud, CloudOff, RefreshCw, Wifi, WifiOff } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck, Download, Cloud, CloudOff, RefreshCw, Wifi, WifiOff, FileText } from "lucide-react";
 
 export default function App() {
   // Durable local storage persistence key
@@ -120,6 +122,7 @@ export default function App() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [authModalDefaultIsSignUp, setAuthModalDefaultIsSignUp] = useState<boolean>(false);
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [isSettingsModalOpen, setIsSettingsModalOpen] = useState<boolean>(false);
 
   // Auth Hook: Setup connection listeners
   useEffect(() => {
@@ -712,22 +715,68 @@ export default function App() {
     }
   };
 
+  // Action: Import custom portability token backups across device links
+  const handleImportPortableBackup = async (importedData: CDACCDashboardData) => {
+    setData(importedData);
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(importedData));
+    
+    if (user && db) {
+      try {
+        triggerPushAlert("☁ Synchronizing Backup", "Uploading imported data to your live secure database...");
+        
+        // Save profile
+        await setDoc(doc(db, 'students', user.uid), importedData.student);
+
+        // Upload units
+        for (const u of importedData.units) {
+          await setDoc(doc(db, 'students', user.uid, 'units', u.id), u);
+        }
+
+        // Upload deadlines
+        if (importedData.deadlines) {
+          for (const d of importedData.deadlines) {
+            await setDoc(doc(db, 'students', user.uid, 'deadlines', d.id), d);
+          }
+        }
+
+        // Upload attendance
+        if (importedData.attendanceLogs) {
+          for (const l of importedData.attendanceLogs) {
+            await setDoc(doc(db, 'students', user.uid, 'attendanceLogs', l.id), l);
+          }
+        }
+        
+        triggerPushAlert("✓ Progress Ported & Synced", "All active records loaded and pushed to your secure Cloud Registry.");
+      } catch (err: any) {
+        console.error("Cloud port upload failed: ", err);
+        handleFirestoreError(err, OperationType.UPDATE, `students/${user.uid}`);
+      }
+    } else {
+      triggerPushAlert("✓ Local Sandbox Restored", "Records imported successfully to browser cache.");
+    }
+  };
+
   // Reset helper
   const handleResetAppToDefault = async () => {
-    if (confirm("Reset application? All your recorded test scores, attendance details and customized milestones will revert to defaults.")) {
-      setData(initialCDACCData);
-      localStorage.removeItem(STORAGE_KEY);
-      triggerPushAlert("System Reverted", "Data restored successfully to baseline Level 6 tracker.");
+    setData(initialCDACCData);
+    localStorage.removeItem(STORAGE_KEY);
+    triggerPushAlert("System Reverted", "Data restored successfully to baseline Level 6 tracker.");
 
-      if (user && db) {
-        try {
-          await setDoc(doc(db, 'students', user.uid), initialCDACCData.student);
-          for (const u of initialCDACCData.units) {
-            await setDoc(doc(db, 'students', user.uid, 'units', u.id), u);
-          }
-        } catch (e) {
-          console.error("Reseed failed:", e);
+    if (user && db) {
+      try {
+        await setDoc(doc(db, 'students', user.uid), initialCDACCData.student);
+        for (const u of initialCDACCData.units) {
+          await setDoc(doc(db, 'students', user.uid, 'units', u.id), u);
         }
+        // Delete previous deadlines
+        for (const dl of data.deadlines) {
+          await deleteDoc(doc(db, 'students', user.uid, 'deadlines', dl.id));
+        }
+        for (const u of initialCDACCData.deadlines) {
+          await setDoc(doc(db, 'students', user.uid, 'deadlines', u.id), u);
+        }
+      } catch (e) {
+        console.error("Reseed failed:", e);
       }
     }
   };
@@ -876,6 +925,26 @@ export default function App() {
             )}
 
             <button
+              onClick={() => {
+                triggerPushAlert("📄 Generating PDF", "Assembling official TVET CDACC transcript elements...");
+                setTimeout(() => {
+                  try {
+                    exportCDACCTranscriptToPDF(data);
+                    triggerPushAlert("✓ PDF Assembled", "Your verified academic dossier PDF has downloaded successfully.");
+                  } catch (err) {
+                    console.error("PDF generation failed:", err);
+                    triggerPushAlert("⚠ PDF Generation Failed", "An error occurred compiling jsPDF page vector components.");
+                  }
+                }, 500);
+              }}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-sans text-xs font-bold rounded-xl transition cursor-pointer shadow-xs leading-none"
+              title="Download high-fidelity official Level 6 CDACC transcript certificate"
+            >
+              <FileText className="h-3.5 w-3.5 animate-bounce-slow" />
+              <span>Export PDF Transcript</span>
+            </button>
+
+            <button
               onClick={handleRequestPushAuthority}
               className={`p-2 rounded-xl transition cursor-pointer font-sans text-xs ${isNotificationsEnabled ? "bg-emerald-50 text-emerald-600 hover:bg-emerald-100" : "bg-blue-50 text-blue-600 hover:bg-blue-100"}`}
               title={isNotificationsEnabled ? "OS Push Notifications Configured" : "Manage background alerts Settings"}
@@ -884,9 +953,9 @@ export default function App() {
             </button>
             
             <button
-              onClick={handleResetAppToDefault}
+              onClick={() => setIsSettingsModalOpen(true)}
               className="p-2 bg-slate-100 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-200 transition cursor-pointer"
-              title="Reset configuration defaults"
+              title="Continuous Registry Portability Sync & Settings"
             >
               <Settings className="h-4 w-4" />
             </button>
@@ -1094,6 +1163,17 @@ export default function App() {
         onGoogleLogin={handleGoogleSignIn}
         onNotification={triggerPushAlert}
         defaultIsSignUp={authModalDefaultIsSignUp}
+      />
+
+      {/* SYSTEM DIAGNOSTICS & SYNC OPTIONS MODAL */}
+      <SettingsModal
+        isOpen={isSettingsModalOpen}
+        onClose={() => setIsSettingsModalOpen(false)}
+        data={data}
+        user={user}
+        isFirebaseConfigured={isFirebaseConfigured}
+        onImportData={handleImportPortableBackup}
+        onResetData={handleResetAppToDefault}
       />
 
       {/* PWA WALKTHROUGH / GUIDE MODAL */}
