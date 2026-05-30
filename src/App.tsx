@@ -96,15 +96,22 @@ export default function App() {
 
   // State: Controls email/password registration and sign-in modal
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
+  const [authModalDefaultIsSignUp, setAuthModalDefaultIsSignUp] = useState<boolean>(false);
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
   // Auth Hook: Setup connection listeners
   useEffect(() => {
-    if (!isFirebaseConfigured || !auth) return;
+    if (!isFirebaseConfigured || !auth) {
+      setIsAuthLoading(false);
+      return;
+    }
 
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
-        checkAndMigrate(currentUser);
+        checkAndMigrate(currentUser).finally(() => {
+          setIsAuthLoading(false);
+        });
       } else {
         const raw = localStorage.getItem(STORAGE_KEY);
         if (raw) {
@@ -116,11 +123,17 @@ export default function App() {
         } else {
           setData(initialCDACCData);
         }
+        setIsAuthLoading(false);
       }
     });
 
     return () => unsubscribe();
   }, []);
+
+  const handleOpenAuthModal = (isSignUp: boolean = false) => {
+    setAuthModalDefaultIsSignUp(isSignUp);
+    setIsAuthModalOpen(true);
+  };
 
   // Sync Hook: Synchronize dynamic Cloud collections into React state in real-time
   useEffect(() => {
@@ -686,6 +699,28 @@ export default function App() {
     }
   };
 
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-6 font-sans">
+        {/* Flag colors bar */}
+        <div className="fixed top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-black via-red-600 to-emerald-600"></div>
+        <div className="space-y-4 text-center max-w-sm">
+          <div className="relative inline-block">
+            <div className="h-14 w-14 rounded-2xl bg-emerald-650/10 bg-emerald-600/10 border border-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold text-lg font-mono animate-pulse shadow-lg shadow-emerald-500/10">
+              CDACC
+            </div>
+            {/* Sizable spin indicator */}
+            <div className="absolute -inset-1 border-2 border-emerald-500/30 border-t-emerald-400 rounded-2xl animate-spin"></div>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold font-display text-slate-100">Verifying CDACC Registry</h4>
+            <p className="text-[10.5px] text-slate-400 leading-relaxed mt-1 font-mono uppercase tracking-wider">Connecting to Secure TVET Database...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col md:flex-row font-sans selection:bg-emerald-500 selection:text-white">
       
@@ -696,7 +731,7 @@ export default function App() {
         student={data.student}
         isFirebaseConfigured={isFirebaseConfigured}
         user={user}
-        onLogin={() => setIsAuthModalOpen(true)}
+        onLogin={handleOpenAuthModal}
         onLogout={handleSignOut}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -941,6 +976,7 @@ export default function App() {
         onClose={() => setIsAuthModalOpen(false)}
         onGoogleLogin={handleGoogleSignIn}
         onNotification={triggerPushAlert}
+        defaultIsSignUp={authModalDefaultIsSignUp}
       />
 
       {/* PWA WALKTHROUGH / GUIDE MODAL */}

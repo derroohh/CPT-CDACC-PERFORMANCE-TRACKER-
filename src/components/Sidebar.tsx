@@ -31,7 +31,7 @@ interface SidebarProps {
   student: StudentProfile;
   isFirebaseConfigured: boolean;
   user: any | null;                 // Authenticated user if available
-  onLogin: () => void;
+  onLogin: (isSignUp?: boolean) => void;
   onLogout: () => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
@@ -271,7 +271,7 @@ export default function Sidebar({
                 </button>
               )}
               <button
-                onClick={user ? onLogout : onLogin}
+                onClick={user ? onLogout : () => onLogin(false)}
                 className={`p-2 rounded-xl border cursor-pointer transition mx-auto flex items-center justify-center ${
                   user 
                     ? "bg-slate-800 hover:bg-rose-500 hover:border-rose-400 hover:text-rose-100 text-slate-400 border-slate-700" 
@@ -350,26 +350,32 @@ export default function Sidebar({
 
               {/* Login / Auth triggers */}
               {isFirebaseConfigured && (
-                <button
-                  type="button"
-                  onClick={user ? onLogout : onLogin}
-                  className={`w-full cursor-pointer py-2 px-3 border rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm
-                    ${user 
-                      ? "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700/80 hover:text-white" 
-                      : "bg-emerald-600 border-emerald-550 text-white hover:bg-emerald-700"
-                    }
-                  `}
-                >
-                  {user ? (
-                    <>
-                      <LogOut className="h-3.5 w-3.5" /> Log Out Cloud
-                    </>
-                  ) : (
-                    <>
-                      <LogIn className="h-3.5 w-3.5" /> Trainee Sign In
-                    </>
-                  )}
-                </button>
+                user ? (
+                  <button
+                    type="button"
+                    onClick={onLogout}
+                    className="w-full cursor-pointer py-2 px-3 bg-slate-800 border border-slate-700 text-slate-300 hover:bg-rose-600 hover:border-rose-500 hover:text-white rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <LogOut className="h-3.5 w-3.5" /> Log Out Cloud
+                  </button>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onLogin(false)}
+                      className="w-full cursor-pointer py-2 px-2 bg-emerald-600 text-white hover:bg-emerald-700 border border-emerald-550 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm"
+                    >
+                      <LogIn className="h-3.5 w-3.5" /> Sign In
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => onLogin(true)}
+                      className="w-full cursor-pointer py-2 px-2 bg-slate-800 text-slate-350 hover:text-white hover:bg-slate-700 border border-slate-700 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1 shadow-sm"
+                    >
+                      <UserCheck className="h-3.5 w-3.5 text-emerald-450 text-emerald-400" /> Register
+                    </button>
+                  </div>
+                )
               )}
 
             </div>

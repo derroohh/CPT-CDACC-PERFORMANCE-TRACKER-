@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   X, 
@@ -32,6 +32,7 @@ interface AuthModalProps {
   onClose: () => void;
   onGoogleLogin: () => void;
   onNotification: (title: string, body: string) => void;
+  defaultIsSignUp?: boolean;
 }
 
 export default function AuthModal({
@@ -39,12 +40,19 @@ export default function AuthModal({
   onClose,
   onGoogleLogin,
   onNotification,
+  defaultIsSignUp = false,
 }: AuthModalProps) {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [isSignUp, setIsSignUp] = useState(defaultIsSignUp);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [fullName, setFullName] = useState("");
+
+  useEffect(() => {
+    if (isOpen) {
+      setIsSignUp(defaultIsSignUp);
+    }
+  }, [isOpen, defaultIsSignUp]);
   
   // UI states
   const [showPassword, setShowPassword] = useState(false);
