@@ -47,6 +47,7 @@ export interface StudentProfile {
   institution: string;
   cohort: string;
   photoUrl?: string;
+  email?: string;
 }
 
 export interface Deadline {

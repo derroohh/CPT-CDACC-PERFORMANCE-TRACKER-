@@ -14,6 +14,7 @@ import AICoachAdvisor from "./components/AICoachAdvisor.tsx";
 import ScheduleReminders from "./components/ScheduleReminders.tsx";
 import AttendanceTracker from "./components/AttendanceTracker.tsx";
 import Sidebar from "./components/Sidebar.tsx";
+import AuthModal from "./components/AuthModal.tsx";
 
 import { 
   auth, 
@@ -80,6 +81,9 @@ export default function App() {
 
   // State: Connected Firebase context authenticated user
   const [user, setUser] = useState<User | null>(null);
+
+  // State: Controls email/password registration and sign-in modal
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
 
   // Auth Hook: Setup connection listeners
   useEffect(() => {
@@ -169,7 +173,12 @@ export default function App() {
         );
         
         // Save profile
-        await setDoc(studentRef, data.student);
+        const newStudentPr = {
+          ...data.student,
+          name: currentUser.displayName || data.student.name,
+          email: currentUser.email || data.student.email || "",
+        };
+        await setDoc(studentRef, newStudentPr);
 
         // Batch upload learning units
         for (const unit of data.units) {
@@ -575,7 +584,7 @@ export default function App() {
         student={data.student}
         isFirebaseConfigured={isFirebaseConfigured}
         user={user}
-        onLogin={handleGoogleSignIn}
+        onLogin={() => setIsAuthModalOpen(true)}
         onLogout={handleSignOut}
         isCollapsed={isSidebarCollapsed}
         onToggleCollapse={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
@@ -775,7 +784,7 @@ export default function App() {
               <CheckCircle2 className="h-5 w-5" />
             </div>
 
-            <div className="space-y-0.5 select-none">
+            <div className="space-y-0.5 select-none font-sans">
               <h5 className="text-xs font-bold font-display text-white">{toast.title}</h5>
               <p className="text-[10.5px] leading-relaxed text-slate-300">{toast.body}</p>
             </div>
@@ -789,6 +798,15 @@ export default function App() {
           </div>
         ))}
       </div>
+
+      {/* AUTHENTICATION OVERLAY */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onGoogleLogin={handleGoogleSignIn}
+        onNotification={triggerPushAlert}
+      />
+
 
     </div>
   );

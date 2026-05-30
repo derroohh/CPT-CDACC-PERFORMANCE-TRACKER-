@@ -28,6 +28,10 @@
         "photoUrl": {
           "type": "string",
           "description": "Voluntary avatar image locator string"
+        },
+        "email": {
+          "type": "string",
+          "description": "Voluntary registered email address"
         }
       },
       "required": ["name", "admissionNo", "courseName", "institution", "cohort"]

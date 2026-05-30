@@ -36,13 +36,14 @@ service cloud.firestore {
     // Input Validations per Entities
     function isValidStudentProfile(data) {
       return data.keys().hasAll(['name', 'admissionNo', 'courseName', 'institution', 'cohort'])
-        && data.keys().size() <= 6
+        && data.keys().size() <= 8
         && isValidString(data.name, 100)
         && isValidString(data.admissionNo, 50)
         && isValidString(data.courseName, 150)
         && isValidString(data.institution, 150)
         && isValidString(data.cohort, 50)
-        && (!data.keys().contains('photoUrl') || isValidString(data.photoUrl, 400));
+        && (!data.keys().contains('photoUrl') || isValidString(data.photoUrl, 3000000))
+        && (!data.keys().contains('email') || isValidString(data.email, 200));
     }
 
     function isValidUnitOfLearning(data) {

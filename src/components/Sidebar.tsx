@@ -303,7 +303,7 @@ export default function Sidebar({
                     </>
                   ) : (
                     <>
-                      <LogIn className="h-3.5 w-3.5" /> Google Connect
+                      <LogIn className="h-3.5 w-3.5" /> Trainee Sign In
                     </>
                   )}
                 </button>
