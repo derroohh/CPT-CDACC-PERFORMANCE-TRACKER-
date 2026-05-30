@@ -22,7 +22,8 @@ import {
   Menu,
   Sparkles,
   Award,
-  Download
+  Download,
+  LineChart
 } from "lucide-react";
 
 interface SidebarProps {
@@ -61,6 +62,7 @@ export default function Sidebar({
 
   const navItems = [
     { id: "dashboard", label: "Metrics & Trends", icon: LayoutDashboard },
+    { id: "analytics", label: "Analytics Hub", icon: LineChart },
     { id: "attendance", label: "Attendance Ledger", icon: UserCheck },
     { id: "grades", label: "Syllabus Grades", icon: ClipboardCheck },
     { id: "poe", label: "Portfolio Binder (PoE)", icon: BookOpen },
@@ -275,7 +277,7 @@ export default function Sidebar({
                 className={`p-2 rounded-xl border cursor-pointer transition mx-auto flex items-center justify-center ${
                   user 
                     ? "bg-slate-800 hover:bg-rose-500 hover:border-rose-400 hover:text-rose-100 text-slate-400 border-slate-700" 
-                    : "bg-emerald-600 border-emerald-550 text-emerald-400 hover:bg-emerald-650"
+                    : "bg-emerald-650 border-emerald-600 text-white hover:bg-emerald-700"
                 }`}
                 title={user ? `Signed in as: ${user.email}. Click to Logout` : "Sign in to synchronize database storage"}
               >

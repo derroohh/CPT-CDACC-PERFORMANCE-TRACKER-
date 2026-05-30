@@ -1376,5 +1376,316 @@ export const CDACC_CURRICULA_PRESETS: Record<string, CDACCDashboardData> = {
   }
 };
 
-// Default Initial Baseline (ICT)
-export const initialCDACCData: CDACCDashboardData = CDACC_CURRICULA_PRESETS.ict;
+/**
+ * Kenyan TVET CDACC Curricula definitions for National Certificate (Lvl 4) & Craft Certificate (Lvl 5).
+ * Level 6 is manually detailed as direct static trade keys above.
+ */
+interface UnitMeta {
+  code: string;
+  name: string;
+  hours: number;
+  creditHours: number;
+}
+
+const LEVEL_PRESETS: Record<string, Record<number, { title: string; prefix: string; units: UnitMeta[] }>> = {
+  ict: {
+    4: {
+      title: "Certificate in ICT Support (Level 4)",
+      prefix: "ICT-CT4-",
+      units: [
+        { code: "ICT/OS/4/1-A", name: "Perform Basic Word Processing", hours: 40, creditHours: 4 },
+        { code: "ICT/OS/4/2-A", name: "Inputting and Processing Data", hours: 45, creditHours: 4 },
+        { code: "ICT/OS/4/3-A", name: "Basic Software Installation & Troubleshooting", hours: 50, creditHours: 5 },
+        { code: "ICT/OS/4/4-A", name: "Basic Internet and Email Communications", hours: 35, creditHours: 3 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Information Technology (Level 5)",
+      prefix: "ICT-CR5-",
+      units: [
+        { code: "ICT/OS/5/1-A", name: "Run Workstation Operating Systems", hours: 50, creditHours: 5 },
+        { code: "ICT/OS/5/2-A", name: "Perform Word Processing and Spreadsheets", hours: 60, creditHours: 6 },
+        { code: "ICT/OS/5/3-A", name: "Connect Basic Local Area Network (LAN) Nodes", hours: 70, creditHours: 7 },
+        { code: "ICT/OS/5/4-A", name: "Design Basic Structured Queries (SQL)", hours: 75, creditHours: 7 },
+        { code: "ICT/OS/5/5-A", name: "Write Structured Program Routines", hours: 80, creditHours: 8 }
+      ]
+    }
+  },
+  electrical: {
+    4: {
+      title: "Certificate in Electrical Installation (Level 4)",
+      prefix: "ELE-CT4-",
+      units: [
+        { code: "ELE/OS/4/1-A", name: "Perform Single Phase Domestic Wiring", hours: 50, creditHours: 5 },
+        { code: "ELE/OS/4/2-A", name: "Fit Electrical Metal Conduits and Pipes", hours: 45, creditHours: 4 },
+        { code: "ELE/OS/4/3-A", name: "Repair Domestic Electrical Appliances", hours: 40, creditHours: 4 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Electrical Power Option (Level 5)",
+      prefix: "ELE-CR5-",
+      units: [
+        { code: "ELE/OS/5/1-A", name: "Interpret Electrical Schematics & Layouts", hours: 60, creditHours: 6 },
+        { code: "ELE/OS/5/2-A", name: "Install Industrial 3-Phase Motors & Motor Starters", hours: 75, creditHours: 7 },
+        { code: "ELE/OS/5/3-A", name: "Solar Photovoltaic Systems Installation & Wiring", hours: 70, creditHours: 7 },
+        { code: "ELE/OS/5/4-A", name: "Perform Cable Joints and Earthing Terminations", hours: 65, creditHours: 6 }
+      ]
+    }
+  },
+  hospitality: {
+    4: {
+      title: "Certificate in Food and Beverage Artisanry (Level 4)",
+      prefix: "FAB-CT4-",
+      units: [
+        { code: "FAB/OS/4/1-A", name: "Clean and Sanitize Kitchen Spaces", hours: 40, creditHours: 4 },
+        { code: "FAB/OS/4/2-A", name: "Basic Preparations of Vegetables and Fruits", hours: 45, creditHours: 4 },
+        { code: "FAB/OS/4/3-A", name: "Bake Basic Pastry Products & Desserts", hours: 50, creditHours: 5 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Food & Beverage Production (Level 5)",
+      prefix: "FAB-CR5-",
+      units: [
+        { code: "FAB/OS/5/1-A", name: "Implement Safe Food Handling & Hygiene", hours: 55, creditHours: 5 },
+        { code: "FAB/OS/5/2-A", name: "Cook Main Course Dishes (Meat, Poultry, Fish)", hours: 80, creditHours: 8 },
+        { code: "FAB/OS/5/3-A", name: "Run Restaurant Beverage Station operations", hours: 60, creditHours: 6 },
+        { code: "FAB/OS/5/4-A", name: "Recipe Sizing and Commercial Buffet Production", hours: 75, creditHours: 7 }
+      ]
+    }
+  },
+  construction: {
+    4: {
+      title: "Certificate in Artisanry Masonry & Blockwork (Level 4)",
+      prefix: "CIV-CT4-",
+      units: [
+        { code: "CIV/OS/4/1-A", name: "Prepare Mortar mix and brickwork foundations", hours: 45, creditHours: 4 },
+        { code: "CIV/OS/4/2-A", name: "Lay Stone & Block Walls in structures", hours: 55, creditHours: 5 },
+        { code: "CIV/OS/4/3-A", name: "Basic Site Demarcations & Hand Tools handling", hours: 40, creditHours: 4 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Building Construction (Level 5)",
+      prefix: "CIV-CR5-",
+      units: [
+        { code: "CIV/OS/5/1-A", name: "Read Structural Blueprinted Concrete Schematics", hours: 60, creditHours: 6 },
+        { code: "CIV/OS/5/2-A", name: "Frame timber formwork and structural scaffolding", hours: 70, creditHours: 7 },
+        { code: "CIV/OS/5/3-A", name: "Cast reinforced concrete columns and slab parts", hours: 80, creditHours: 8 },
+        { code: "CIV/OS/5/4-A", name: "Site Levelling using dumpy level structures", hours: 65, creditHours: 6 }
+      ]
+    }
+  },
+  automotive: {
+    4: {
+      title: "Certificate in Automotive Artisan Mechanics (Level 4)",
+      prefix: "AUT-CT4-",
+      units: [
+        { code: "AUT/OS/4/1-A", name: "Perform Basic Engine Servicing (Filters & Oils)", hours: 45, creditHours: 4 },
+        { code: "AUT/OS/4/2-A", name: "Overhaul drum brake components & alignment", hours: 50, creditHours: 5 },
+        { code: "AUT/OS/4/3-A", name: "Repair suspension bushings & shock struts", hours: 40, creditHours: 4 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Automotive Engineering (Level 5)",
+      prefix: "AUT-CR5-",
+      units: [
+        { code: "AUT/OS/5/1-A", name: "Diagnose petrol engine fuel feeds & sparks", hours: 70, creditHours: 7 },
+        { code: "AUT/OS/5/2-A", name: "Service manual clutches & gearbox synchromesh", hours: 75, creditHours: 7 },
+        { code: "AUT/OS/5/3-A", name: "Diagnose basic chassis wiring and relay loops", hours: 60, creditHours: 6 },
+        { code: "AUT/OS/5/4-A", name: "Maintain vehicle hydraulic braking networks", hours: 65, creditHours: 6 }
+      ]
+    }
+  },
+  agriculture: {
+    4: {
+      title: "Certificate in General Agriculture Artisanry (Level 4)",
+      prefix: "AGR-CT4-",
+      units: [
+        { code: "AGR/OS/4/1-A", name: "Sow Field crops and vegetable nursery seeds", hours: 40, creditHours: 4 },
+        { code: "AGR/OS/4/2-A", name: "Apply fertilizers and crop nutrition spray feeds", hours: 45, creditHours: 4 },
+        { code: "AGR/OS/4/3-A", name: "Basic rearing guidelines for poultry & livestock", hours: 50, creditHours: 5 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in General Agriculture (Level 5)",
+      prefix: "AGR-CR5-",
+      units: [
+        { code: "AGR/OS/5/1-A", name: "Design greenhouse layouts & drip feed lines", hours: 65, creditHours: 6 },
+        { code: "AGR/OS/5/2-A", name: "Formulate poultry and cattle feeds", hours: 60, creditHours: 6 },
+        { code: "AGR/OS/5/3-A", name: "Perform soil sampling and nutrient analysis", hours: 75, creditHours: 7 },
+        { code: "AGR/OS/5/4-A", name: "Set up bee nurseries & apiculture honey harvests", hours: 55, creditHours: 5 }
+      ]
+    }
+  },
+  business: {
+    4: {
+      title: "Certificate in Office Administration (Level 4)",
+      prefix: "BUS-CT4-",
+      units: [
+        { code: "BUS/OS/4/1-A", name: "Perform Office Filing and Records Management", hours: 40, creditHours: 4 },
+        { code: "BUS/OS/4/2-A", name: "Handle Customer Service Desk interactions", hours: 45, creditHours: 4 },
+        { code: "BUS/OS/4/3-A", name: "Maintain Petty Cash records & ledger logs", hours: 35, creditHours: 3 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Business Management (Level 5)",
+      prefix: "BUS-CR5-",
+      units: [
+        { code: "BUS/OS/5/1-A", name: "Process General Ledger Journal entry books", hours: 60, creditHours: 6 },
+        { code: "BUS/OS/5/2-A", name: "Handle payroll & statutory tax (PAYE/NSSF)", hours: 65, creditHours: 6 },
+        { code: "BUS/OS/5/3-A", name: "Perform Sacco customer records auditing", hours: 70, creditHours: 7 },
+        { code: "BUS/OS/5/4-A", name: "Maintain warehouse inventories and tracking files", hours: 60, creditHours: 6 }
+      ]
+    }
+  },
+  fashion: {
+    4: {
+      title: "Certificate in Fashion Design & Tailoring (Level 4)",
+      prefix: "FAS-CT4-",
+      units: [
+        { code: "FAS/OS/4/1-A", name: "Stitch basic seams and pockets profiles", hours: 45, creditHours: 4 },
+        { code: "FAS/OS/4/2-A", name: "Cut patterns and fabrics safely", hours: 40, creditHours: 4 },
+        { code: "FAS/OS/4/3-A", name: "Operate domestic embroidery & lockstitch", hours: 50, creditHours: 5 }
+      ]
+    },
+    5: {
+      title: "Craft Certificate in Fashion Design (Level 5)",
+      prefix: "FAS-CR5-",
+      units: [
+        { code: "FAS/OS/5/1-A", name: "Prepare classic shirt patterns and trouser blocks", hours: 75, creditHours: 7 },
+        { code: "FAS/OS/5/2-A", name: "Analyze fabric compositions & fiber burn properties", hours: 60, creditHours: 6 },
+        { code: "FAS/OS/5/3-A", name: "Perform manual resist dyeing (Tie & Dye, Batik)", hours: 65, creditHours: 6 },
+        { code: "FAS/OS/5/4-A", name: "Assemble finished garments matching criteria", hours: 80, creditHours: 8 }
+      ]
+    }
+  }
+};
+
+// Procedural population of Certificate (Level 4) and Craft (Level 5) sets to keep bundle sizes slim but content high-fidelity
+Object.keys(LEVEL_PRESETS).forEach((tradeKey) => {
+  const levels = LEVEL_PRESETS[tradeKey];
+  Object.keys(levels).forEach((levelStr) => {
+    const levelNum = parseInt(levelStr);
+    const { title, prefix, units } = levels[levelNum];
+    
+    const formattedUnits = units.map((u, idx) => {
+      const poeStatus = [PoEStatus.CERTIFIED, PoEStatus.READY_FOR_ASSESSMENT, PoEStatus.IN_PROGRESS, PoEStatus.NOT_STARTED][idx % 4];
+      const competenceStatus = poeStatus === PoEStatus.CERTIFIED 
+        ? CompetenceStatus.COMPETENT 
+        : poeStatus === PoEStatus.READY_FOR_ASSESSMENT 
+        ? CompetenceStatus.COMPETENT 
+        : CompetenceStatus.ONGOING;
+      
+      const attPercentages = [94, 82, 74, 80];
+      const attPct = attPercentages[idx % attPercentages.length];
+      const hoursAttended = Math.round((attPct / 100) * u.hours);
+      
+      // Standard continuous assessments
+      const assessments = [];
+      if (poeStatus !== PoEStatus.NOT_STARTED) {
+        assessments.push({
+          id: `as-${tradeKey}-${levelNum}-${idx}-cat1`,
+          title: `Continuous Assessment (CAT 1 on ${u.name})`,
+          type: "CAT" as const,
+          obtainedScore: [78, 64, 82, 59][idx % 4],
+          weight: 30,
+          date: `2026-02-${10 + idx * 4}`,
+          feedback: "Accomplished with core syllabus standard compliance guidelines.",
+          status: CompetenceStatus.COMPETENT
+        });
+        
+        if (poeStatus === PoEStatus.CERTIFIED || poeStatus === PoEStatus.READY_FOR_ASSESSMENT) {
+          assessments.push({
+            id: `as-${tradeKey}-${levelNum}-${idx}-proj`,
+            title: `Practical Demonstration Portfolio Task: ${u.name}`,
+            type: "Practical Project" as const,
+            obtainedScore: [83, 70, 78, 88][idx % 4],
+            weight: 30,
+            date: `2026-03-${14 + idx * 3}`,
+            feedback: "Exceptional skills mastery demonstrated. Signed off safely in workshop logs.",
+            status: CompetenceStatus.COMPETENT
+          });
+          
+          if (poeStatus === PoEStatus.CERTIFIED) {
+            assessments.push({
+              id: `as-${tradeKey}-${levelNum}-${idx}-exam`,
+              title: `End of Unit Competency Assessment (National Board standard)`,
+              type: "Internal Exam" as const,
+              obtainedScore: [70, 75, 68, 82][idx % 4],
+              weight: 40,
+              date: `2026-04-${20 + idx * 2}`,
+              feedback: "Approved and authenticated under Kenya CDACC Joint Registry board.",
+              status: CompetenceStatus.COMPETENT
+            });
+          }
+        }
+      }
+      
+      return {
+        id: prefix + (idx + 1),
+        code: u.code,
+        name: u.name,
+        level: levelNum,
+        creditHours: u.creditHours,
+        hoursRequired: u.hours,
+        hoursAttended,
+        poeStatus,
+        competenceStatus,
+        assessments
+      };
+    });
+
+    const deadlines = formattedUnits.slice(0, 2).map((u, i) => ({
+      id: `dl-${tradeKey}-${levelNum}-${i}`,
+      unitId: u.id,
+      unitName: u.name,
+      title: i === 0 ? "Compile PoE Logbook Binder" : "Practical Skills Board Assessment",
+      dueDate: `2026-06-0${4 + i * 6}`,
+      type: (i === 0 ? "PoE Submission" : "CDACC National Exam") as any,
+      description: `Complete and present validated scripts for units on ${u.name}.`,
+      completed: false
+    }));
+
+    const attendanceLogs = formattedUnits.map((u, i) => ({
+      id: `att-${tradeKey}-${levelNum}-${i}`,
+      unitId: u.id,
+      unitName: u.name,
+      unitCode: u.code,
+      date: `2026-05-${14 + i * 2}`,
+      duration: 3,
+      status: (i % 6 === 0 ? "Absent (Unexcused)" : "Present") as any,
+      remarks: `Study session for Unit component ${u.name}.`
+    }));
+
+    CDACC_CURRICULA_PRESETS[`${tradeKey}_${levelNum}`] = {
+      student: {
+        name: "Derrick Ngure",
+        admissionNo: `TVET/KAP/${tradeKey.toUpperCase().substring(0, 3)}/2025/${2000 + levelNum * 123 + tradeKey.length * 17}`,
+        courseName: title,
+        institution: "Kabete National Polytechnic, Nairobi",
+        cohort: "2025/2026 Intake (Year 1, Sem 1)",
+        photoUrl: "",
+        email: "derrickngure39@gmail.com"
+      },
+      units: formattedUnits,
+      deadlines,
+      attendanceLogs
+    };
+  });
+});
+
+// Alias default level 6 presets to trade_6 and base key mappings to guarantee compatibility.
+Object.keys(CDACC_CURRICULA_PRESETS).forEach((tradeKey) => {
+  if (!tradeKey.includes("_")) {
+    CDACC_CURRICULA_PRESETS[`${tradeKey}_6`] = { ...CDACC_CURRICULA_PRESETS[tradeKey] };
+  }
+});
+// Verify and map base keys to level 6 by default
+["ict", "electrical", "hospitality", "construction", "automotive", "agriculture", "business", "fashion"].forEach((k) => {
+  if (!CDACC_CURRICULA_PRESETS[k]) {
+    CDACC_CURRICULA_PRESETS[k] = CDACC_CURRICULA_PRESETS[`${k}_6`] || CDACC_CURRICULA_PRESETS[`${k}_5`];
+  }
+});
+
+// Default Initial Baseline
+export const initialCDACCData: CDACCDashboardData = CDACC_CURRICULA_PRESETS.ict_6;
+

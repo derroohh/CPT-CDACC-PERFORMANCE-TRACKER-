@@ -166,143 +166,174 @@ export default function DashboardOverview({
     <div className="space-y-6 font-sans">
       
       {/* KENYAN CDACC SYLLABUS PATHWAY INTERACTIVE SWITCHER */}
-      <div className="bg-white border border-slate-200 rounded-2xl p-4.5 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-3 pb-3 border-b border-slate-100">
+      <div className="bg-white border border-slate-200 rounded-3xl p-5 shadow-sm space-y-4">
+        {/* Switcher Header */}
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
             <span className="text-[10px] uppercase font-mono font-extrabold tracking-widest text-emerald-600 flex items-center gap-1.5 leading-none mb-1">
-              <Sparkles className="h-3 w-3 animate-pulse" /> National CDACC Curriculum Presets
+              <Sparkles className="h-3 w-3 animate-pulse" /> National CDACC Multi-Level Syllabus Catalogue
             </span>
-            <h3 className="text-sm font-bold text-slate-800 font-display">
-              Change Kenyan TVET Trade Syllabus Pathway
+            <h3 className="text-sm font-extrabold text-slate-800 font-display">
+              Kenyan TVET Curriculum Core Switcher
             </h3>
           </div>
           <span className="text-[10.5px] text-slate-400 font-medium">
-            Select your syllabus pathway to load official units of learning, deadlines, and topics.
+            Toggle your Sector and Level to instantly regenerate standard units, deadlines, and milestones.
           </span>
         </div>
 
-        {/* Trade quick cards grid */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-          {[
-            {
-              key: "ict",
-              title: "ICT Technician",
-              subtitle: "Software & Networks",
-              duration: "Level 6",
-              icon: Cpu,
-              color: "text-blue-500 bg-blue-50 border-blue-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "electrical",
-              title: "Electrical Power",
-              subtitle: "Industrial Wiring",
-              duration: "Level 6",
-              icon: Bolt,
-              color: "text-amber-500 bg-amber-50 border-amber-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "hospitality",
-              title: "Culinary Arts",
-              subtitle: "Food & Beverage",
-              duration: "Level 6",
-              icon: ChefHat,
-              color: "text-rose-500 bg-rose-50 border-rose-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "construction",
-              title: "Civil Engineering",
-              subtitle: "Structural CAD",
-              duration: "Level 6",
-              icon: Hammer,
-              color: "text-emerald-500 bg-emerald-50 border-emerald-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "automotive",
-              title: "Automotive Tech",
-              subtitle: "Engine Diagnostics",
-              duration: "Level 6",
-              icon: Car,
-              color: "text-indigo-500 bg-indigo-55 border-indigo-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "agriculture",
-              title: "Agriculture",
-              subtitle: "Agro-Business",
-              duration: "Level 6",
-              icon: Sprout,
-              color: "text-teal-600 bg-teal-50 border-teal-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "business",
-              title: "Business Mgmt",
-              subtitle: "SACCO Admin",
-              duration: "Level 6",
-              icon: Briefcase,
-              color: "text-violet-600 bg-violet-50 border-violet-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            },
-            {
-              key: "fashion",
-              title: "Fashion Design",
-              subtitle: "Pattern Apparel",
-              duration: "Level 6",
-              icon: Scissors,
-              color: "text-fuchsia-600 bg-fuchsia-50 border-fuchsia-100",
-              activeColor: "ring-2 ring-emerald-500/80 bg-emerald-50/10 border-emerald-400"
-            }
-          ].map((preset) => {
-            const Icon = preset.icon;
-            // Determine active preset based on either student courseName or some smart match
-            const isActive = student.courseName.toLowerCase().includes(preset.title.toLowerCase()) || 
-                             student.courseName.toLowerCase().includes(preset.subtitle.toLowerCase()) ||
-                             (preset.key === "ict" && student.courseName.toLowerCase().includes("information")) ||
-                             (preset.key === "ict" && student.courseName.toLowerCase().includes("ict")) ||
-                             (preset.key === "agriculture" && student.courseName.toLowerCase().includes("agri")) ||
-                             (preset.key === "business" && student.courseName.toLowerCase().includes("bus")) ||
-                             (preset.key === "fashion" && student.courseName.toLowerCase().includes("fas"));
+        {/* Determine Active Sector and Level Reactively from current loaded Profile */}
+        {(() => {
+          const currentCourseLower = student.courseName.toLowerCase();
+          
+          let activeSector = "ict";
+          if (currentCourseLower.includes("electrical") || currentCourseLower.includes("power")) activeSector = "electrical";
+          else if (currentCourseLower.includes("culinary") || currentCourseLower.includes("food") || currentCourseLower.includes("beverage") || currentCourseLower.includes("artisanry")) activeSector = "hospitality";
+          else if (currentCourseLower.includes("civil") || currentCourseLower.includes("building") || currentCourseLower.includes("masonry")) activeSector = "construction";
+          else if (currentCourseLower.includes("auto") || currentCourseLower.includes("mechanic")) activeSector = "automotive";
+          else if (currentCourseLower.includes("agri")) activeSector = "agriculture";
+          else if (currentCourseLower.includes("bus") || currentCourseLower.includes("admin") || currentCourseLower.includes("office")) activeSector = "business";
+          else if (currentCourseLower.includes("fashion") || currentCourseLower.includes("tailor") || currentCourseLower.includes("apparel")) activeSector = "fashion";
 
-            return (
-              <motion.button
-                key={preset.key}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => onLoadCurriculaPreset(preset.key)}
-                className={`text-left p-3 rounded-xl border cursor-pointer transition-all duration-200 select-none flex flex-col justify-between h-[115px] min-w-0
-                  ${isActive ? preset.activeColor : "border-slate-150 bg-slate-50/30 hover:bg-slate-50"}
-                `}
-              >
-                <div className="flex items-center justify-between w-full">
-                  <div className={`p-1.5 rounded-lg ${preset.color} shrink-0`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  {isActive ? (
-                    <span className="bg-emerald-500 text-white text-[7.5px] font-extrabold px-1.5 py-0.5 rounded uppercase font-mono tracking-wider">
-                      Active
-                    </span>
-                  ) : (
-                    <span className="text-[7.5px] text-slate-450 font-bold uppercase font-mono tracking-wider">
-                      {preset.duration}
-                    </span>
-                  )}
+          let activeLevel = 6;
+          if (currentCourseLower.includes("level 4") || currentCourseLower.includes("artisan") || currentCourseLower.includes("certificate in")) {
+            if (!currentCourseLower.includes("craft") && !currentCourseLower.includes("higher")) {
+              activeLevel = 4;
+            }
+          }
+          if (currentCourseLower.includes("level 5") || currentCourseLower.includes("craft certificate")) {
+            activeLevel = 5;
+          }
+
+          // Meta for level cards
+          const levelsInfo = [
+            {
+              level: 4,
+              title: "Level 4 Certificate",
+              subtitle: "National Certificate (Artisan)",
+              cohort: "1 Year Standard",
+              desc: "Entry: KCSE Certificate. Focuses on manual dexterity and practical workmanship skills.",
+              badgeColor: "bg-blue-50 text-blue-700 border-blue-100"
+            },
+            {
+              level: 5,
+              title: "Level 5 Certificate",
+              subtitle: "National Craft Certificate",
+              cohort: "2 Years Standard",
+              desc: "Entry: KCSE Grade D (Plain/Plus) or Lvl 4. Focuses on tech applications & supervision.",
+              badgeColor: "bg-amber-50 text-amber-700 border-amber-100"
+            },
+            {
+              level: 6,
+              title: "Level 6 Diploma",
+              subtitle: "National Diploma",
+              cohort: "3 Years Standard",
+              desc: "Entry: KCSE Grade C- (Minus) or Lvl 5. Focuses on engineering, design, & division leadership.",
+              badgeColor: "bg-violet-50 text-violet-700 border-violet-100"
+            }
+          ];
+
+          return (
+            <div className="space-y-4">
+              {/* LEVEL SEGMENTED SELECTOR */}
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono block mb-2">
+                  1. Select National Qualification Level
+                </span>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                  {levelsInfo.map((l) => {
+                    const isLvlActive = activeLevel === l.level;
+                    return (
+                      <button
+                        key={l.level}
+                        type="button"
+                        onClick={() => onLoadCurriculaPreset(`${activeSector}_${l.level}`)}
+                        className={`text-left p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex flex-col justify-between relative overflow-hidden
+                          ${isLvlActive 
+                            ? "border-emerald-500 bg-emerald-50/20 shadow-sm ring-1 ring-emerald-400/30" 
+                            : "border-slate-150 bg-slate-50/40 hover:bg-slate-50"
+                          }
+                        `}
+                      >
+                        <div className="flex items-center justify-between w-full mb-1">
+                          <span className="text-xs font-extrabold text-slate-800 font-display">
+                            {l.title}
+                          </span>
+                          <span className={`text-[8.5px] font-mono font-bold px-2 py-0.5 rounded border uppercase ${l.badgeColor}`}>
+                            {l.cohort}
+                          </span>
+                        </div>
+                        <p className="text-[10.5px] leading-relaxed text-slate-500 font-medium">
+                          {l.desc}
+                        </p>
+                        {isLvlActive && (
+                          <div className="absolute right-0 bottom-0 h-1.5 w-full bg-emerald-500"></div>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
-                <div className="pt-2 min-w-0">
-                  <h4 className="text-[11px] font-bold text-slate-850 leading-tight truncate">
-                    {preset.title}
-                  </h4>
-                  <p className="text-[9px] text-slate-450 font-medium truncate mt-0.5">
-                    {preset.subtitle}
-                  </p>
+              </div>
+
+              {/* SECTOR GRID SELECTOR */}
+              <div>
+                <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider font-mono block mb-2">
+                  2. Select Professional Trade Specialty Focus
+                </span>
+                <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
+                  {[
+                    { key: "ict", title: "ICT Tech", subtitle: "Support & Coding", icon: Cpu, color: "text-blue-500 bg-blue-50" },
+                    { key: "electrical", title: "Electrical Power", subtitle: "Wiring & Power", icon: Bolt, color: "text-amber-500 bg-amber-50" },
+                    { key: "hospitality", title: "Culinary Arts", subtitle: "F&B Production", icon: ChefHat, color: "text-rose-500 bg-rose-50" },
+                    { key: "construction", title: "Civil Eng", subtitle: "Building Tech", icon: Hammer, color: "text-emerald-500 bg-emerald-50" },
+                    { key: "automotive", title: "Auto Tech", subtitle: "Engine Servicing", icon: Car, color: "text-indigo-500 bg-indigo-50" },
+                    { key: "agriculture", title: "Agriculture", subtitle: "Crop Extension", icon: Sprout, color: "text-teal-600 bg-teal-50" },
+                    { key: "business", title: "Business Mgmt", subtitle: "Office & Admin", icon: Briefcase, color: "text-violet-600 bg-violet-50" },
+                    { key: "fashion", title: "Fashion Design", subtitle: "Garment Making", icon: Scissors, color: "text-fuchsia-600 bg-fuchsia-50" }
+                  ].map((preset) => {
+                    const Icon = preset.icon;
+                    const isSectorActive = activeSector === preset.key;
+
+                    return (
+                      <motion.button
+                        key={preset.key}
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        onClick={() => onLoadCurriculaPreset(`${preset.key}_${activeLevel}`)}
+                        className={`text-left p-3 rounded-2xl border cursor-pointer transition-all duration-200 flex flex-col justify-between h-[105px] min-w-0 relative
+                          ${isSectorActive 
+                            ? "border-emerald-500 bg-emerald-50/15 ring-1 ring-emerald-400/20" 
+                            : "border-slate-150 bg-slate-50/20 hover:bg-slate-50/60"
+                          }
+                        `}
+                      >
+                        <div className="flex items-center justify-between w-full">
+                          <div className={`p-1.5 rounded-xl ${preset.color} shrink-0`}>
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          {isSectorActive && (
+                            <span className="bg-emerald-500 text-white text-[7px] font-mono font-black px-1 py-0.5 rounded leading-none uppercase tracking-wider">
+                              ACTIVE
+                            </span>
+                          )}
+                        </div>
+                        <div className="pt-2 min-w-0">
+                          <h4 className="text-[10.5px] font-extrabold text-slate-800 leading-tight truncate">
+                            {preset.title}
+                          </h4>
+                          <p className="text-[8.5px] text-slate-400 font-medium truncate mt-0.5">
+                            {preset.subtitle}
+                          </p>
+                        </div>
+                      </motion.button>
+                    );
+                  })}
                 </div>
-              </motion.button>
-            );
-          })}
-        </div>
+              </div>
+            </div>
+          );
+        })()}
       </div>
 
       {/* 1. HERO STUDENT BIO CARD WITH INTEGRATED PROFILE UPLOADER */}

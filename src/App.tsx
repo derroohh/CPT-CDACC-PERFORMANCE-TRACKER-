@@ -9,6 +9,7 @@ import { initialCDACCData, CDACC_CURRICULA_PRESETS } from "./initialData.ts";
 import { CDACCDashboardData, PoEStatus, CompetenceStatus, AssessmentRecord, Deadline, StudentProfile, AttendanceSession, UnitOfLearning } from "./types.ts";
 
 import DashboardOverview from "./components/DashboardOverview.tsx";
+import AnalyticsHub from "./components/AnalyticsHub.tsx";
 import GradesManager from "./components/GradesManager.tsx";
 import PoETrackView from "./components/PoETrackView.tsx";
 import AICoachAdvisor from "./components/AICoachAdvisor.tsx";
@@ -40,7 +41,7 @@ import {
   deleteDoc 
 } from "firebase/firestore";
 
-import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck, Download } from "lucide-react";
+import { LayoutDashboard, ClipboardCheck, BookOpen, Brain, Clock, Bell, Settings, Info, Sparkles, CheckCircle2, UserCheck, Download, Cloud, CloudOff, RefreshCw, Wifi, WifiOff } from "lucide-react";
 
 export default function App() {
   // Durable local storage persistence key
@@ -93,6 +94,27 @@ export default function App() {
 
   // State: Connected Firebase context authenticated user
   const [user, setUser] = useState<User | null>(null);
+
+  // State: Offline/Online Connectivity state
+  const [isOnline, setIsOnline] = useState<boolean>(typeof navigator !== 'undefined' ? navigator.onLine : true);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleOnline = () => {
+      setIsOnline(true);
+      triggerPushAlert("☁ Cloud Connection Online", "Network connection re-established. Real-time background sync is active.");
+    };
+    const handleOffline = () => {
+      setIsOnline(false);
+      triggerPushAlert("⚠ Operating Offline", "Your device is disconnected. All progress is cached locally and will sync when online.");
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // State: Controls email/password registration and sign-in modal
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
@@ -228,6 +250,44 @@ export default function App() {
       }
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, `students/${currentUser.uid}`);
+    }
+  };
+
+  const forceManualBackup = async () => {
+    if (!db || !user) {
+      triggerPushAlert(
+        "☁ Cloud Registration Required",
+        "Sign in or complete registration to secure your workspace records in the cloud."
+      );
+      return;
+    }
+    try {
+      triggerPushAlert("🔄 Initializing Safety Backup", "Uploading active Units, PoE indicators, and attendance ledgers to Firestore...");
+      
+      const studentRef = doc(db, 'students', user.uid);
+      await setDoc(studentRef, data.student);
+
+      // Save units list 
+      for (const u of data.units) {
+        await setDoc(doc(db, 'students', user.uid, 'units', u.id), u);
+      }
+
+      // Save deadlines calendar
+      for (const d of data.deadlines) {
+        await setDoc(doc(db, 'students', user.uid, 'deadlines', d.id), d);
+      }
+
+      // Save classroom logs
+      if (data.attendanceLogs) {
+        for (const log of data.attendanceLogs) {
+          await setDoc(doc(db, 'students', user.uid, 'attendanceLogs', log.id), log);
+        }
+      }
+
+      triggerPushAlert("✓ Sync Backup Completed", "All records successfully written to your secured CDACC cloud profile databases.");
+    } catch (e: any) {
+      console.error(e);
+      triggerPushAlert("⚠ Sync Backup Failed", e.message || "An error occurred while pushing logs to the server.");
     }
   };
 
@@ -748,10 +808,59 @@ export default function App() {
         {/* UPPER ACTION / TOGGLE HEADER PIECE */}
         <header className="hidden md:flex items-center justify-between px-6 py-3.5 bg-white border-b border-slate-200 shadow-xs sticky top-0 z-30">
           <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-emerald-555 animate-pulse" />
+            <Sparkles className="h-4 w-4 text-emerald-500 animate-pulse" />
             <span className="text-[11px] font-mono tracking-wider text-slate-400 font-extrabold uppercase">
               Kenya CDACC Tracker (CBET Framework Compliant)
             </span>
+
+            {/* Cloud Status Indicator HUD Widget */}
+            <div className="flex items-center ml-2 border-l border-slate-200 pl-3">
+              {(() => {
+                if (!isFirebaseConfigured) {
+                  return (
+                    <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 text-[10.5px] font-semibold border border-slate-200">
+                      <CloudOff className="h-3 w-3" />
+                      <span>Sandbox Mode</span>
+                    </div>
+                  );
+                }
+                if (!user) {
+                  return (
+                    <button 
+                      onClick={() => handleOpenAuthModal(false)}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 text-[10.5px] font-bold border border-blue-150 hover:bg-blue-100 transition cursor-pointer"
+                      title="Syllabus not backed up on network cloud database. Click to sign up / register."
+                    >
+                      <Cloud className="h-3 w-3 text-blue-400 animate-bounce" />
+                      <span>Backup Cloud Off</span>
+                    </button>
+                  );
+                }
+                if (!isOnline) {
+                  return (
+                    <button 
+                      onClick={forceManualBackup}
+                      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 text-[10.5px] font-bold border border-amber-150 hover:bg-amber-100 transition cursor-pointer animate-pulse"
+                      title="Device is offline. Saved locally. Reconnect to resume."
+                    >
+                      <WifiOff className="h-3 w-3" />
+                      <span>Local Saved (Offline)</span>
+                    </button>
+                  );
+                }
+                return (
+                  <button 
+                    onClick={forceManualBackup}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 text-[10.5px] font-bold border border-emerald-150 hover:bg-emerald-100 transition cursor-pointer group"
+                    title="Real-time syncing enabled. Click to force instant database backup."
+                  >
+                    <Cloud className="h-3 w-3 text-emerald-500" />
+                    <span>✓ Live Sync</span>
+                    <RefreshCw className="h-2.5 w-2.5 text-emerald-400 group-hover:rotate-180 transition-transform duration-300" />
+                  </button>
+                );
+              })()}
+            </div>
           </div>
 
           <div className="flex items-center gap-3">
@@ -797,6 +906,7 @@ export default function App() {
                   <span className="text-emerald-600">{activeTab}</span>
                 </div>
                 <h2 className="text-lg font-bold font-display text-slate-800 tracking-tight capitalize leading-none">
+                  {activeTab === "analytics" && "Performance Analytics Section & Diagnostics"}
                   {activeTab === "attendance" && "Attendance Ledger Tracker"}
                   {activeTab === "grades" && "Syllabus Contents & Course Grades"}
                   {activeTab === "poe" && "Evidence Portfolio Binder (PoE)"}
@@ -847,6 +957,13 @@ export default function App() {
                   onNavigateToTab={setActiveTab}
                   onUpdateProfile={handleUpdateProfile}
                   onLoadCurriculaPreset={handleLoadCurriculaPreset}
+                />
+              )}
+
+              {activeTab === "analytics" && (
+                <AnalyticsHub
+                  data={data}
+                  onNavigateToTab={setActiveTab}
                 />
               )}
 

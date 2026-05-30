@@ -265,6 +265,36 @@ export default function AuthModal({
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
+
+              {/* Dynamic Strength Indicator for Sign Up */}
+              {isSignUp && password && (() => {
+                const strength = (() => {
+                  if (password.length < 5) return { label: "Weak (Min 6 chars Required)", color: "bg-red-500", text: "text-red-500", width: "w-1/3" };
+                  const hasNumbers = /\d/.test(password);
+                  const hasUpper = /[A-Z]/.test(password);
+                  const hasSpecial = /[^A-Za-z0-9]/.test(password);
+                  let score = 0;
+                  if (password.length >= 8) score++;
+                  if (hasNumbers) score++;
+                  if (hasUpper || hasSpecial) score++;
+
+                  if (score <= 0) return { label: "Fair Tracker Passkey", color: "bg-amber-400", text: "text-amber-500", width: "w-1/2" };
+                  if (score === 1) return { label: "Medium Portability Security", color: "bg-blue-500", text: "text-blue-500", width: "w-2/3" };
+                  return { label: "Strong & Safe Registry Passcode", color: "bg-emerald-500", text: "text-emerald-500", width: "w-full" };
+                })();
+
+                return (
+                  <div className="space-y-1 pt-1.5 animate-fade-in font-sans">
+                    <div className="flex justify-between items-center text-[9px] font-bold">
+                      <span className="text-slate-400">Registry Strength:</span>
+                      <span className={`${strength.text} uppercase font-mono font-black`}>{strength.label}</span>
+                    </div>
+                    <div className="h-1 bg-slate-100 rounded-full w-full overflow-hidden">
+                      <div className={`h-full transition-all duration-300 ${strength.color} ${strength.width}`}></div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Confirm Password (Sign Up only) */}
@@ -284,14 +314,43 @@ export default function AuthModal({
                       type={showPassword ? "text" : "password"} 
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 hover:border-slate-300 text-slate-900 rounded-xl py-2 px-3.5 text-xs focus:outline-none focus:border-emerald-600 transition-colors"
+                      className={`w-full bg-slate-50 border text-slate-900 rounded-xl py-2 px-3.5 text-xs focus:outline-none transition-colors
+                        ${confirmPassword && password !== confirmPassword 
+                          ? "border-red-300 focus:border-red-500 bg-red-50/10" 
+                          : confirmPassword && password === confirmPassword 
+                            ? "border-emerald-300 focus:border-emerald-500 bg-emerald-50/10" 
+                            : "border-slate-200 focus:border-emerald-600 hover:border-slate-300"
+                        }
+                      `}
                       placeholder="Repeat passcode exactly"
                       required={isSignUp}
                     />
                   </div>
+                  
+                  {confirmPassword && (
+                    <div className="text-[9px] font-bold uppercase font-mono pt-1 text-right leading-none">
+                      {password === confirmPassword ? (
+                        <span className="text-emerald-600">✓ Passcodes lock matched</span>
+                      ) : (
+                        <span className="text-red-500">⚠ Passcodes mismatch</span>
+                      )}
+                    </div>
+                  )}
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* Cloud Registration Security Benefits Card for Onboarding info */}
+            {isSignUp && (
+              <div className="bg-slate-50 border border-slate-150 rounded-2xl p-3.5 space-y-2 mt-4 animate-fade-in">
+                <span className="text-[9px] uppercase font-mono tracking-wider text-slate-400 font-extrabold block">✓ Live Registry Security Advantages</span>
+                <ul className="text-[10px] text-slate-500 leading-normal space-y-1.5 font-medium">
+                  <li className="flex items-start gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0 mt-1"></span> <span>Secure, durable cloud backups of learning materials</span></li>
+                  <li className="flex items-start gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0 mt-1"></span> <span>Reliable continuous assessment logs & marks safeguarding</span></li>
+                  <li className="flex items-start gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500 shrink-0 mt-1"></span> <span>Real-time offline cache backing (resume sync instantly)</span></li>
+                </ul>
+              </div>
+            )}
 
             {/* Errors / Success announcements */}
             {errorMsg && (
